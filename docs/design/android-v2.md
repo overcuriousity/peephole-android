@@ -23,7 +23,10 @@ read IP **or** host **or** URL, and the QR scanner already in the app
 This doc covers exactly those three gaps, plus the polish pass the issue
 also asks for. It does not revisit anything in v1 §6.4–§6.9 (IP detail,
 probe, scan-confirm, job status, settings) beyond the polish findings in
-§4 below — those flows are unchanged.
+§4 below — those flows are unchanged, except the job log/status screen
+(`JobScreens.kt`), added to scope by the owner's follow-up answer on
+MIK-88 naming it the "un-polished cluster log"; its redesign is §4 item 9
+/ §4.1, not a fourth gap alongside lookup/scan/polish above.
 
 **Server dependency.** `POST /api/v1/lookup` taking host names/URLs is
 MIK-89 (in progress at the time of writing; exact JSON field names are
@@ -330,12 +333,120 @@ screenshotted against this spec, exactly as v1 §9 deferred it.
 | 6 | `Theme.kt` (whole file) | `PeepholeTheme` overrides `colorScheme` and `shapes` only; `MaterialTheme.typography` is Compose's stock `Typography()` (system Roboto) | Add an explicit `Typography()` override: Inter (400/500/600, OFL-licensed, bundled as font resources — not a new *library* dependency, satisfying the issue's constraint) mapped to `bodyLarge`/`labelLarge`/`bodyMedium` per v1 §3's own table; a `monoSmall`/`monoMedium` `TextStyle` using JetBrains Mono (also OFL) in place of the generic `Mono = TextStyle(fontFamily = FontFamily.Monospace, ...)`, which falls back to whatever mono font a given OEM ships | This is likely the single biggest cause of the "rough" first impression: v1 §3 specified a type system and it was never wired in, so every screen is running on the Android system default instead of the two families chosen to match the web admin (the doc's own screenshot-parity goal, §3: "so a side-by-side screenshot... reads as one product" — it currently can't, because the fonts don't match). |
 | 7 | Scattered: `LookupScreen.kt:62,67`, `PairScreen.kt:76`, `JobScreens.kt:109,120,123,132`, `ActScreens.kt:70-anywhere `Spacer(Modifier.height(...))`` | Literal dp values chosen per call site: 8, 12, 16, 24, 32 all appear with no shared source | A `Spacing` object in `Theme.kt` (`val xs = 4.dp; val sm = 8.dp; val md = 16.dp; val lg = 24.dp; val xl = 32.dp`), call sites updated to reference it | Not visually wrong today, but there's no single place that *is* the spacing scale — every new screen (Home included) is one more chance to pick a sixth number. The visual-quality bar asks for "spacing from a scale," which requires the scale to exist as a named thing, not just a convention in people's heads. |
 | 8 | `IpDetailScreen.kt:172-181` (`Tile`), `ActScreens.kt:177-181` (scan quote's cost block) | Both hand-roll `Column.background(surfaceContainer, RoundedCornerShape(...))` instead of a `Card` | `Card(colors = CardDefaults.cardColors(containerColor = surfaceContainer), elevation = CardDefaults.cardElevation(0.dp))` | v1 §3 was explicit: "Compose `Card` with `tonalElevation` only... instead of a default Material 'paper' feel" — the intent was to *use* `Card` with elevation dialed down, not to avoid `Card` entirely. The hand-rolled version loses `Card`'s built-in content padding defaults and semantics (a `Card` is a recognized container to assistive tech; a plain `Column` with a background colour is not). |
+| 9 | `JobScreens.kt:109-134` (`JobScreen`), `:140-155` (`VantageBlock`), `IpDetailScreen.kt:184-197` (`ScanBlock`) | Owner's own words on v0.1.0 ([MIK-88](/MIK/issues/MIK-88)): the job log/status screen is "an un-polished cluster log." One `Column` stacks a status word, an optional progress bar, then every `VantageBlock`/`ScanBlock` back to back — each just a `Text` header followed by raw `Mono`-style `Text` lines, one per port, with no per-line timestamp, no colour distinguishing an open port from a `lapsed` vantage from a `failed` one, and no boundary between one vantage's output and the next. On a multi-vantage probe this is indistinguishable from a dumped terminal log. | Promote the screen to a status header + log, detailed in §4.1 below. | This is the row that needed its own subsection, not just a before/after cell — see §4.1. |
 
-None of these are behaviour changes — every one is a visual/semantic
+None of these are behaviour changes except item 9 (new header fields,
+scrollable log, copy/share) — every other row is a visual/semantic
 substitution Engineer can do screen-by-screen without touching navigation,
 state, or network code, and each is independently verifiable by `grep`
 against the file:line cited (no build required to confirm the *before*;
 confirming the *after* needs the screenshot pass noted above).
+
+### 4.1 Job status & log (item 9, detail)
+
+Same screen (`JobScreen`), same data (`Job`, `ProbeVantage`, `ScanResult` —
+no new API field, no new endpoint). What changes is how it's laid out:
+a fixed status header on top, a scrollable log below, both visually
+distinct regions instead of one undifferentiated `Column`.
+
+```
+┌──────────────────────────────┐
+│ ←  Scan L4 · 203.0.113.7  ⧉ ⤴│  TopAppBar: title unchanged (jobTitle()),
+├──────────────────────────────┤  trailing actions = copy, share (new)
+│ [running]  2 of 4 vantages   │  status header, see below
+│ [███████░░░] elapsed 00:42   │
+├──────────────────────────────┤
+│ 03:14:02  node-us    110 ms  │  log, see below — Mono, one row/entry
+│ 03:14:02    22/tcp   open   │
+│ 03:14:02    443/tcp  open   │
+│ 03:14:05  node-eu    lapsed  │
+│           no result in 15m   │
+│ 03:14:09  node-ap    96 ms   │
+│           ...                │
+├──────────────────────────────┤
+│ [ Open 203.0.113.7 ]          │  unchanged (JobScreens.kt:133)
+└──────────────────────────────┘
+```
+
+**Status header** (replaces `JobScreens.kt:109-123`'s loose `Text` +
+`Spacer` + `LinearProgressIndicator`): a `Card` (tonalElevation, item 8's
+pattern) containing —
+- `StatusBadge(current.status)` (unchanged component) plus, for a probe,
+  "`N` of `M` vantages" / for a scan, the port count so far — both derived
+  from data already on screen (`vantages.size` vs. `ref`'s declared vantage
+  count; `scan.ports.size`), not a new field.
+- Elapsed time: `createdAt` → now while `!current.finished`, ticking every
+  second (`LaunchedEffect` + `delay(1_000)`, foreground-only via the
+  existing `isResumed()` gate — same lifecycle discipline the poll loop
+  already uses at `JobScreens.kt:72-73`); freezes at `createdAt` →
+  last-seen-update time once `finished` — never keeps counting up after a
+  job is done, which would misstate how long it actually took.
+- `LinearProgressIndicator` keeps its current placement and its current
+  rule (`JobScreens.kt:118-119`'s comment: no animated bar without a live
+  poll behind it) — determinate if the job exposes a fraction, otherwise
+  the existing indeterminate bar; hidden entirely once finished, replaced
+  by the end-state treatment below.
+
+**Log** (replaces the bare `VantageBlock`/`ScanBlock` stack): a
+`LazyColumn`, one row per event —
+- Each row: `utcTime(entry.at)` (existing helper, `HH:mm:ss`, already UTC
+  per v1 §2's data-honesty rule) in `Mono` at `onSurfaceVariant`, then the
+  entry text in `Mono` at a colour keyed to level — `onSurfaceVariant`
+  (info: a vantage starting, a port line), `Success` (an open port, a
+  vantage that agreed — both existing tokens, `Theme.kt:36`/`Common.kt:51`
+  respectively), `Warning` (`lapsed`, a declined vantage — `Common.kt:51`,
+  same token `StatusBadge` already uses for "running"), `colorScheme.error`
+  (a vantage or the job itself reporting `failed`). Colour is never the
+  only signal: the word ("open", "lapsed", "failed") is always in the
+  text, per v1 §2's colour-independence rule, restated here because a log
+  is exactly the surface where someone might be tempted to drop the word
+  and keep only a coloured dot.
+- One `VantageBlock`'s current fields (name, state, rtt, why, ports) become
+  several log rows instead of one paragraph — this is the actual fix for
+  "cluster log": each fact gets its own timestamped line instead of being
+  run together under one vantage heading, so a multi-vantage probe reads
+  as a chronological sequence, not a wall of text.
+- Auto-scroll: `LazyListState`, `scrollToItem(lastIndex)` on each new row
+  while the list's last visible item is at (or near) the bottom. The
+  moment the user scrolls away from the bottom (`listState.firstVisible...
+  ` offset check, standard Compose pattern — no new dependency), auto-
+  scroll stops and a small `FilledTonalButton("↓ N new")` pinned above the
+  bottom-action button appears, resuming auto-scroll on tap. This is the
+  forgiveness rule (design-lens: forms & errors) applied to a live feed —
+  reading an earlier line should never be yanked out from under the user
+  by the next poll tick.
+- Copy/share: two `IconButton`s in the `TopAppBar`'s `actions` slot —
+  `Icons.Default.ContentCopy` ("Copy log") writes the log's current text
+  (one line per row, same text as rendered, timestamps included) to the
+  platform `ClipboardManager`, confirmed by a `Snackbar` ("Copied"), same
+  pattern as any one-tap clipboard action; `Icons.Default.Share` ("Share
+  log") hands the same text to `Intent.ACTION_SEND` / `text/plain` — both
+  platform APIs, no new dependency. Disabled (not hidden — Fitts's Law:
+  a control that moves when it becomes usable costs more than one that's
+  simply greyed out) while the log has zero rows.
+
+**End states** — the API's `Job.finished` (`ApiModels.kt:132`) is only
+ever `true` for `status == "done"` or `status == "failed"`; there is no
+`cancelled` job status in the current API or `Job` model, and no cancel
+endpoint for a job already started (checked `docs/api-v1.md` in
+`overcuriousity/peephole` — the only "Cancel" buttons in this app are on
+the pre-start cost-confirm dialog, §6.5/§6.4 of v1, which abandon a job
+that was never created). So only two end states are real today:
+  - **done**: header badge turns `Success`-toned (`StatusBadge` already
+    does this), progress bar disappears, elapsed time freezes, log's last
+    row stays visible (no auto-scroll fires again), bottom button
+    (`Open {ip}`) stays the primary action.
+  - **failed**: header badge turns `error`-toned (already does this via
+    `StatusBadge`), progress bar disappears, elapsed time freezes, the
+    existing `ErrorBanner` (item 4's single shared version) sits between
+    header and log stating why if known, log keeps whatever partial rows
+    it collected — a failed job's partial log is still useful evidence,
+    never cleared.
+  - **cancelled** is not implementable against today's API; if the owner
+    wants an in-flight job to be stoppable, that is a server capability
+    gap (a new endpoint), not a screen the client can fake. Flagged in §6
+    as a follow-up for Engineer/CTO to route to a server ticket rather
+    than silently dropped from the acceptance criteria.
 
 ## 5. Accessibility (delta from v1 §7)
 
@@ -375,3 +486,10 @@ confirming the *after* needs the screenshot pass noted above).
   locally and a query the server resolves agree on what the "host" was —
   worth Engineer diffing the two parsers once MIK-89 is merged, rather
   than writing the Android one from this doc's prose alone.
+- A "cancelled" job end state (§4.1, added to this doc's scope by the
+  owner's MIK-88 follow-up) has no API to back it: no `cancelled` status
+  value, no cancel-a-running-job endpoint. §4.1 designs only the two end
+  states the API actually produces (`done`, `failed`) and names the gap
+  rather than inventing a client-side "cancel." If the owner wants a
+  stoppable job, that's a new server capability — a ticket for CTO to
+  scope, not something this doc can spec without one.
