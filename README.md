@@ -63,6 +63,10 @@ Builds run in GitHub Actions; see `.github/workflows/`.
 Locally: `./gradlew assembleDebug testDebugUnitTest` with JDK 17+ and the
 Android SDK (compileSdk 37). minSdk is 26 (Android 8.0).
 
+## Roadmap
+
+What comes next is in [docs/roadmap.md](docs/roadmap.md).
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
