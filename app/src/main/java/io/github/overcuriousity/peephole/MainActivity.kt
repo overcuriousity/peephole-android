@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         val app = application as PeepholeApplication
         setContent {
             PeepholeTheme {
-                PeepholeApp(app.store, app.pairingClient)
+                PeepholeApp(app)
             }
         }
     }
