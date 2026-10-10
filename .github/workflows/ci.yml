@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      write-verification-metadata:
+        description: Regenerate gradle/verification-metadata.xml (after a dependency change) and upload it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # Dependency verification is trust-on-first-use: when the metadata file
+      # is missing (or a refresh is requested) this run writes it, uploads it
+      # for review and commit, and fails so nothing ships unverified.
+      - name: Write dependency verification metadata
+        id: tofu
+        if: hashFiles('gradle/verification-metadata.xml') == '' || inputs.write-verification-metadata
+        run: >-
+          ./gradlew --no-configuration-cache --write-verification-metadata sha256
+          assembleDebug assembleRelease lintDebug testDebugUnitTest
+      - name: Upload verification metadata
+        if: steps.tofu.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-metadata
+          path: gradle/verification-metadata.xml
+      - name: Stop until the metadata is committed
+        if: steps.tofu.outcome == 'success'
+        run: |
+          echo "::error::gradle/verification-metadata.xml was (re)generated. Review the 'verification-metadata' artifact, commit it, and push."
+          exit 1
+
+      - name: Build, lint, unit test
+        run: ./gradlew assembleDebug assembleRelease lintDebug testDebugUnitTest
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: peephole-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports
+          path: app/build/reports/
