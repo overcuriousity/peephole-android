@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -96,12 +98,13 @@ fun PeepholeApp(app: PeepholeApplication) {
         }
         composable("instance/{id}/job/{job}") { entry ->
             val jobId = entry.arguments?.getString("job").orEmpty()
+            val jobs by app.jobs.jobs.collectAsState()
             Paired(app, entry, nav) { instance, api ->
                 JobScreen(
                     api = api,
                     instanceName = instance.instanceName,
                     jobId = jobId,
-                    ref = app.jobs.jobs.value.firstOrNull { it.jobId == jobId && it.instanceId == instance.id },
+                    ref = jobs.firstOrNull { it.jobId == jobId && it.instanceId == instance.id },
                     onBack = { nav.popBackStack() },
                     onOpenIp = { addr -> nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}") },
                     onRevoked = { nav.revoked(instance.id) },
