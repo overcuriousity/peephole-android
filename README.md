@@ -61,7 +61,7 @@ Builds run in GitHub Actions; see `.github/workflows/`.
   *write-verification-metadata*, review the uploaded file, and commit it.
 
 Locally: `./gradlew assembleDebug testDebugUnitTest` with JDK 17+ and the
-Android SDK (compileSdk 36). minSdk is 26 (Android 8.0).
+Android SDK (compileSdk 37). minSdk is 26 (Android 8.0).
 
 ## License
 
