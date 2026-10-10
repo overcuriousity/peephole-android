@@ -11,12 +11,12 @@ val keystoreFile = providers.environmentVariable("ANDROID_KEYSTORE_FILE")
 
 android {
     namespace = "io.github.overcuriousity.peephole"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.overcuriousity.peephole"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = providers.environmentVariable("PEEPHOLE_VERSION_CODE").orNull?.toInt() ?: 1
         versionName = providers.environmentVariable("PEEPHOLE_VERSION_NAME").orNull ?: "0.1.0-dev"
     }
