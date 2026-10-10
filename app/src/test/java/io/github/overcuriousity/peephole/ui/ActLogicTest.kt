@@ -13,19 +13,17 @@ class ActLogicTest {
     private val received = Instant.parse("2026-10-10T16:00:00Z")
 
     @Test
-    fun quoteDeadlineIsTheStatedExpiry() {
-        assertEquals(Instant.parse("2026-10-10T16:01:30Z"), quoteDeadline("2026-10-10T16:01:30Z", received))
+    fun quoteDeadlineIsTwoMinutesLessMarginOnThePhoneClock() {
+        assertEquals(Instant.parse("2026-10-10T16:01:55Z"), quoteDeadline(received))
     }
 
     @Test
-    fun aSlowPhoneClockCannotStretchAQuote() {
-        // The instance's clock says the quote lives an hour from our "now".
-        assertEquals(Instant.parse("2026-10-10T16:02:00Z"), quoteDeadline("2026-10-10T17:00:00Z", received))
-    }
-
-    @Test
-    fun anUnreadableExpiryIsAlreadyExpired() {
-        assertEquals(received, quoteDeadline("soon", received))
+    fun aPhoneClockFiveMinutesFastStillGetsALiveQuote() {
+        // Instance time 16:00, quote expires_at 16:02; the phone reads 16:05.
+        val phoneNow = Instant.parse("2026-10-10T16:05:00Z")
+        val deadline = quoteDeadline(phoneNow)
+        assertTrue(deadline.isAfter(phoneNow))
+        assertEquals(115L, java.time.Duration.between(phoneNow, deadline).seconds)
     }
 
     @Test

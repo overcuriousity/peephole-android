@@ -146,7 +146,7 @@ fun ScanConfirmScreen(
         quote = null
         buyError = null
         val r = withContext(Dispatchers.IO) { api.scanQuote(addr, level) }
-        deadline = if (r is ApiResult.Ok) quoteDeadline(r.value.expiresAt, Instant.now()) else Instant.EPOCH
+        deadline = if (r is ApiResult.Ok) quoteDeadline(Instant.now()) else Instant.EPOCH
         quote = r
     }
     LaunchedEffect(quote) {
@@ -223,6 +223,7 @@ fun ScanConfirmScreen(
                 OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Cancel") }
                 Button(
                     onClick = onClick@{
+                        if (buying) return@onClick
                         val held = q ?: return@onClick
                         buying = true
                         scope.launch {
@@ -261,16 +262,16 @@ fun costText(q: ScanQuote): String =
     if (q.creditsMax == null || q.creditsMax == q.credits) "${q.credits} credits" else "${q.credits}–${q.creditsMax} credits"
 
 /**
- * When the Confirm button dies: the instance's `expires_at`, but never more
- * than the quote's 2-minute life from when it arrived, so a phone clock
- * that runs slow can't stretch it. An unreadable time counts as expired.
+ * When the Confirm button dies: the quote's 2-minute life, less a margin for
+ * the round trip, counted on the phone's clock from when the quote arrived.
+ * The instance's `expires_at` is never compared with the phone's clock: a
+ * phone running fast would kill Confirm on arrival. The instance enforces
+ * expiry itself, and a stale quote is a 409 that charges nothing.
  */
-fun quoteDeadline(expiresAt: String, receivedAt: Instant): Instant {
-    val stated = parseInstant(expiresAt) ?: return receivedAt
-    return minOf(stated, receivedAt.plus(QUOTE_LIFE))
-}
+fun quoteDeadline(receivedAt: Instant): Instant = receivedAt.plus(QUOTE_LIFE).minus(QUOTE_MARGIN)
 
 private val QUOTE_LIFE: Duration = Duration.ofMinutes(2)
+private val QUOTE_MARGIN: Duration = Duration.ofSeconds(5)
 
 private fun quoteProblem(r: ApiResult<*>, instanceName: String): String =
     if (r is ApiResult.Failed && r.status == 409) scanConflict(r) else r.describe(instanceName)
