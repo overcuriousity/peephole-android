@@ -36,4 +36,22 @@ class JobLogTest {
 
         assertEquals(listOf("p_1"), log.jobs.value.map { it.jobId })
     }
+
+    @Test
+    fun sameJobIdOnTwoInstancesKeepsBoth() {
+        val log = JobLog(MapKeyValue())
+        log.add(job("a", "s_42"))
+        log.add(job("b", "s_42"))
+
+        assertEquals(listOf("b" to "s_42", "a" to "s_42"), log.jobs.value.map { it.instanceId to it.jobId })
+    }
+
+    @Test
+    fun reAddingAJobOnTheSameInstanceDedupes() {
+        val log = JobLog(MapKeyValue())
+        log.add(job("a", "s_42"))
+        log.add(job("a", "s_42"))
+
+        assertEquals(1, log.jobs.value.size)
+    }
 }

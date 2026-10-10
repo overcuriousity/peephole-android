@@ -32,8 +32,10 @@ class JobLog(private val kv: KeyValue) {
     private val _jobs = MutableStateFlow(load())
     val jobs: StateFlow<List<JobRef>> = _jobs.asStateFlow()
 
+    /** Job ids are per instance (`s_42` on A and on B), so dedupe on both. */
     @Synchronized
-    fun add(job: JobRef) = save((listOf(job) + _jobs.value.filter { it.jobId != job.jobId }).take(MAX))
+    fun add(job: JobRef) =
+        save((listOf(job) + _jobs.value.filterNot { it.instanceId == job.instanceId && it.jobId == job.jobId }).take(MAX))
 
     /** Drops an instance's jobs, on unpair. */
     @Synchronized
