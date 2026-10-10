@@ -2,6 +2,7 @@ package io.github.overcuriousity.peephole.ui
 
 import io.github.overcuriousity.peephole.net.ApiResult
 import io.github.overcuriousity.peephole.net.ScanQuote
+import io.github.overcuriousity.peephole.net.VantageOffer
 import java.time.Instant
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -32,6 +33,19 @@ class ActLogicTest {
         assertEquals("1.28–2.56 credits", costText(q))
         assertEquals("1.28 credits", costText(q.copy(creditsMax = "1.28")))
         assertEquals("0.00 credits", costText(q.copy(credits = "0.00", creditsMax = null)))
+    }
+
+    @Test
+    fun theProbeButtonTotalsTheTickedVantagesAsTheInstancePrintsCredits() {
+        val offers = listOf(
+            VantageOffer("a", creditsMc = 20, default = true),
+            VantageOffer("b", creditsMc = 30),
+            VantageOffer("c", creditsMc = 1255, default = true),
+        )
+        assertEquals("Probe · 1.28 credits", probeButtonText(offers, setOf("a", "c")))
+        assertEquals("Probe · 0.03 credits", probeButtonText(offers, setOf("b")))
+        assertEquals("Probe · 0.00 credits", probeButtonText(offers, emptySet()))
+        assertEquals("12.35", showCredits(12_345))
     }
 
     @Test

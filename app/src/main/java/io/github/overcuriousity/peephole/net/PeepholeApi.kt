@@ -68,9 +68,17 @@ class PeepholeApi(
     fun lookup(entries: List<String>): ApiResult<LookupResult> =
         post(LookupResult.serializer(), url("lookup"), encode(LookupRequest.serializer(), LookupRequest(entries)))
 
-    /** Starts a probe with the default vantage pick of the admin Actions card. */
-    fun probe(addr: String): ApiResult<ProbeStarted> =
-        post(ProbeStarted.serializer(), url("ips", addr, "probe"), "{}".toRequestBody(JSON))
+    /** The live scanners a probe would ask, their prices and the Actions card's default pick. Spends nothing. */
+    fun probeVantages(addr: String): ApiResult<VantageOffers> =
+        get(VantageOffers.serializer(), url("ips", addr, "probe", "vantages"))
+
+    /** Starts a probe from [vantages] (node ids), or the default pick of the admin Actions card when null. */
+    fun probe(addr: String, vantages: List<String>? = null): ApiResult<ProbeStarted> =
+        post(
+            ProbeStarted.serializer(),
+            url("ips", addr, "probe"),
+            if (vantages == null) "{}".toRequestBody(JSON) else encode(ProbeRequest.serializer(), ProbeRequest(vantages)),
+        )
 
     fun scanQuote(addr: String, level: Int): ApiResult<ScanQuote> =
         get(ScanQuote.serializer(), url("ips", addr, "scan", "quote") { addQueryParameter("level", level.toString()) })
@@ -135,6 +143,9 @@ class PeepholeApi(
 
     @Serializable
     private class LookupRequest(val ips: List<String>)
+
+    @Serializable
+    private class ProbeRequest(val vantages: List<String>)
 
     @Serializable
     private class BuyRequest(@SerialName("quote_id") val quoteId: String)

@@ -91,6 +91,20 @@ data class Vantage(
     @SerialName("credits_mc") val creditsMc: Long = 0,
 )
 
+/** A live scanner a probe would ask: its price and whether the Actions card ticks it by default. */
+@Serializable
+data class VantageOffer(
+    val id: String,
+    val name: String = "",
+    val country: String? = null,
+    val credits: String = "",
+    @SerialName("credits_mc") val creditsMc: Long = 0,
+    val default: Boolean = false,
+)
+
+@Serializable
+data class VantageOffers(val vantages: List<VantageOffer> = emptyList())
+
 @Serializable
 data class ProbeStarted(
     @SerialName("job_id") val jobId: String,
