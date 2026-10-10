@@ -31,7 +31,13 @@ import io.github.overcuriousity.peephole.store.InstanceStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(store: InstanceStore, id: String, onPairAnother: () -> Unit, onClose: () -> Unit) {
+fun SettingsScreen(
+    store: InstanceStore,
+    id: String,
+    onPairAnother: () -> Unit,
+    onClose: () -> Unit,
+    onUnpaired: (String) -> Unit = {},
+) {
     // Captured once: after unpair the store no longer has it, but the
     // confirmation still needs its name.
     val instance = remember(id) { store.get(id) }
@@ -91,6 +97,7 @@ fun SettingsScreen(store: InstanceStore, id: String, onPairAnother: () -> Unit, 
             confirmButton = {
                 TextButton(onClick = {
                     store.remove(instance.id)
+                    onUnpaired(instance.id)
                     confirming = false
                     removed = true
                 }) { Text("Unpair") }
