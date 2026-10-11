@@ -11,14 +11,21 @@ The direction comes from the owner's feedback on v0.1.0 (2026-10-10): the app
 should be a lookup device to carry around. Scan a QR code that holds a URL, or
 type an IP, hostname or URL, and look it up.
 
-## In progress
+## v0.2: built, release pending
 
-- **Probe price before you commit.** S. The probe screen lists vantages
-  with their prices and shows `Probe · N credits` on the button. The server
-  endpoint and the app screen are both in review (peephole #71,
-  peephole-android #3).
+- [x] 1. Look up a hostname or URL (peephole-android #6, #7).
+- [x] 2. Scan any QR code and look up its host (#7).
+- [x] 3. Visual polish (#8).
+- [x] Probe price before you commit (#3).
+- [x] Job status and log: a status header with progress and elapsed time,
+  one timestamped row per fact, Copy and Share. api-v1 has no event times,
+  so a row's time is when the phone first saw it, and the copied log says so.
 
-## Next: v0.2
+A job cannot be cancelled once it started: api-v1 has no `cancelled` status
+and no endpoint to stop a running job, so the app shows only `done` and
+`failed`. Stopping a job needs a server change first.
+
+The items as planned:
 
 ### 1. Look up a hostname or URL
 
