@@ -54,13 +54,34 @@ class InstanceStore(private val kv: KeyValue, private val cipher: TokenCipher) {
     private val _instances = MutableStateFlow(load())
     val instances: StateFlow<List<Instance>> = _instances.asStateFlow()
 
+    private val _lastUsed = MutableStateFlow(kv[LAST_USED_KEY])
+
+    /** The stored [lastUsedId] as written; observe it, then read [lastUsedId]. */
+    val lastUsed: StateFlow<String?> = _lastUsed.asStateFlow()
+
+    /**
+     * The instance Home looks things up on (v2 §1): the one last chosen if it
+     * is still paired, else the most recently paired, else null.
+     */
+    var lastUsedId: String?
+        get() {
+            val list = _instances.value
+            return _lastUsed.value?.takeIf { id -> list.any { it.id == id } } ?: list.lastOrNull()?.id
+        }
+
+        @Synchronized
+        set(id) {
+            kv.put(LAST_USED_KEY to id)
+            _lastUsed.value = id
+        }
+
     fun get(id: String): Instance? = _instances.value.firstOrNull { it.id == id }
 
     fun token(id: String): Secret? = kv[tokenKey(id)]?.let { Secret(cipher.decrypt(it)) }
 
     /**
-     * Adds a pairing. Pairing an origin again (e.g. after a revoke) replaces
-     * the old entry and drops its token.
+     * Adds a pairing and makes it the [lastUsedId]. Pairing an origin again
+     * (e.g. after a revoke) replaces the old entry and drops its token.
      */
     @Synchronized
     fun add(instance: Instance, token: Secret) {
@@ -70,17 +91,23 @@ class InstanceStore(private val kv: KeyValue, private val cipher: TokenCipher) {
         kv.put(
             tokenKey(instance.id) to cipher.encrypt(token.value),
             LIST_KEY to json.encodeToString(listSerializer, next),
+            LAST_USED_KEY to instance.id,
             *drops.toTypedArray(),
         )
         _instances.value = next
+        _lastUsed.value = instance.id
     }
 
     /** Forgets an instance and its token on this device. */
     @Synchronized
     fun remove(id: String) {
         val next = _instances.value.filter { it.id != id }
-        kv.put(tokenKey(id) to null, LIST_KEY to json.encodeToString(listSerializer, next))
+        val clearsLastUsed = _lastUsed.value == id
+        val writes = mutableListOf<Pair<String, String?>>(tokenKey(id) to null, LIST_KEY to json.encodeToString(listSerializer, next))
+        if (clearsLastUsed) writes += LAST_USED_KEY to null
+        kv.put(*writes.toTypedArray())
         _instances.value = next
+        if (clearsLastUsed) _lastUsed.value = null
     }
 
     private fun load(): List<Instance> =
@@ -90,5 +117,6 @@ class InstanceStore(private val kv: KeyValue, private val cipher: TokenCipher) {
 
     private companion object {
         const val LIST_KEY = "instances"
+        const val LAST_USED_KEY = "lastUsed"
     }
 }
