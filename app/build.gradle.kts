@@ -18,7 +18,7 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = providers.environmentVariable("PEEPHOLE_VERSION_CODE").orNull?.toInt() ?: 1
-        versionName = providers.environmentVariable("PEEPHOLE_VERSION_NAME").orNull ?: "0.1.0-dev"
+        versionName = providers.environmentVariable("PEEPHOLE_VERSION_NAME").orNull ?: "0.2.0-dev"
     }
 
     signingConfigs {
