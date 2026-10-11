@@ -81,7 +81,37 @@ data class LookupResult(
     val missing: List<String> = emptyList(),
     val unreadable: List<String> = emptyList(),
     val capped: Boolean = false,
+    /** One entry per sent name, in order; null from a server older than name lookup. */
+    val names: List<NameLookup>? = null,
 )
+
+/** One `names` entry. A failed one has [error]; an `invalid` one has no [host]. */
+@Serializable
+data class NameLookup(
+    val host: String? = null,
+    val resolve: Resolve? = null,
+    val results: List<IpSummary> = emptyList(),
+    val missing: List<String> = emptyList(),
+    val error: EntryError? = null,
+)
+
+@Serializable
+data class Resolve(
+    val note: String? = null,
+    val votes: List<AddrVote> = emptyList(),
+    val resolvers: List<String> = emptyList(),
+    val errors: List<ResolverError> = emptyList(),
+    val also: List<String> = emptyList(),
+)
+
+@Serializable
+data class AddrVote(val ip: String, val agreed: Boolean = false, val verdict: String = "")
+
+@Serializable
+data class ResolverError(val node: String = "", val why: String = "")
+
+@Serializable
+data class EntryError(val code: String = "", val message: String = "")
 
 @Serializable
 data class Vantage(

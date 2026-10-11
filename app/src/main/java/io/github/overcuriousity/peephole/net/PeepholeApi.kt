@@ -65,8 +65,9 @@ class PeepholeApi(
 
     fun ip(addr: String): ApiResult<IpDetail> = get(IpDetail.serializer(), url("ips", addr))
 
-    fun lookup(entries: List<String>): ApiResult<LookupResult> =
-        post(LookupResult.serializer(), url("lookup"), encode(LookupRequest.serializer(), LookupRequest(entries)))
+    /** `ips` is always sent (an old server requires it); `names` only when there are any. */
+    fun lookup(ips: List<String>, names: List<String> = emptyList()): ApiResult<LookupResult> =
+        post(LookupResult.serializer(), url("lookup"), encode(LookupRequest.serializer(), LookupRequest(ips, names)))
 
     /** The live scanners a probe would ask, their prices and the Actions card's default pick. Spends nothing. */
     fun probeVantages(addr: String): ApiResult<VantageOffers> =
@@ -142,7 +143,7 @@ class PeepholeApi(
     }
 
     @Serializable
-    private class LookupRequest(val ips: List<String>)
+    private class LookupRequest(val ips: List<String>, val names: List<String> = emptyList())
 
     @Serializable
     private class ProbeRequest(val vantages: List<String>)

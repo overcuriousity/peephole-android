@@ -179,7 +179,76 @@ class PeepholeApiTest {
         assertEquals("no request may reach the server", 0, server.requestCount)
     }
 
+    @Test
+    fun lookupIpsOnlyBodyIsUnchanged() {
+        server.enqueue(MockResponse(body = OLD_SERVER_LOOKUP))
+
+        api().lookup(listOf("203.0.113.9"))
+
+        assertEquals("""{"ips":["203.0.113.9"]}""", server.takeRequest().body!!.utf8())
+    }
+
+    @Test
+    fun lookupWithNamesSendsBothKeys() {
+        server.enqueue(MockResponse(body = OLD_SERVER_LOOKUP))
+
+        api().lookup(ips = emptyList(), names = listOf("example.com"))
+
+        assertEquals("""{"ips":[],"names":["example.com"]}""", server.takeRequest().body!!.utf8())
+    }
+
+    @Test
+    fun lookupDecodesNameEntries() {
+        // The `names` example of docs/api-v1.md §"Host names and URLs" (peephole PR #74), verbatim.
+        server.enqueue(
+            MockResponse(
+                body = """{"results":[],"missing":[],"unreadable":[],"capped":false,
+"names": [
+  { "host": "example.com",
+    "resolve": {
+      "note": null,
+      "votes": [ { "ip": "203.0.113.9", "agreed": true, "verdict": "agreed by 3 of 3" } ],
+      "resolvers": ["alice (DE)", "bob (NL)", "carol (FR)"],
+      "errors": [],
+      "also": []
+    },
+    "results": [ { "ip": "203.0.113.9", "…": "the per-IP summary" } ],
+    "missing": [] },
+  { "host": "2001:db8::1", "results": [], "missing": ["2001:db8::1"] },
+  { "host": "gone.example", "resolve": { "…": "…" },
+    "error": { "code": "unresolved", "message": "No resolver answered; nothing was stored." } },
+  { "error": { "code": "invalid", "message": "not an IP address, host name or URL" } }
+]}""",
+            ),
+        )
+
+        val names = (api().lookup(emptyList(), listOf("example.com")) as ApiResult.Ok).value.names!!
+
+        assertEquals(4, names.size)
+        assertTrue(names[0].resolve!!.votes[0].agreed)
+        assertEquals("203.0.113.9", names[0].results.single().ip)
+        assertEquals(listOf("2001:db8::1"), names[1].missing)
+        assertEquals("unresolved", names[2].error!!.code)
+        assertNull(names[3].host)
+        assertEquals("invalid", names[3].error!!.code)
+    }
+
+    @Test
+    fun oldServerResponseHasNullNames() {
+        server.enqueue(MockResponse(body = OLD_SERVER_LOOKUP))
+
+        assertNull((api().lookup(listOf("203.0.113.9"), listOf("example.com")) as ApiResult.Ok).value.names)
+    }
+
+    @Test
+    fun newServerIpsOnlyHasEmptyNames() {
+        server.enqueue(MockResponse(body = OLD_SERVER_LOOKUP.removeSuffix("}") + ""","names":[]}"""))
+
+        assertEquals(emptyList<NameLookup>(), (api().lookup(listOf("203.0.113.9")) as ApiResult.Ok).value.names)
+    }
+
     private companion object {
         const val TOKEN = "Zv9-secret-token-value-0123456789abcdefghij"
+        const val OLD_SERVER_LOOKUP = """{"results":[],"missing":[],"unreadable":[],"capped":false}"""
     }
 }
