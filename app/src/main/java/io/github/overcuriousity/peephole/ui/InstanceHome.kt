@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
@@ -31,15 +32,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.overcuriousity.peephole.R
 import io.github.overcuriousity.peephole.lookup.ScanOutcome
 import io.github.overcuriousity.peephole.net.PeepholeApi
 import io.github.overcuriousity.peephole.store.Instance
 import io.github.overcuriousity.peephole.store.InstanceStore
 import io.github.overcuriousity.peephole.store.JobLog
 
-private val Tabs = listOf("Lookup" to "≡", "IPs" to "⌕", "Jobs" to "◷")
+private val Tabs = listOf("Lookup" to R.drawable.ic_search, "IPs" to R.drawable.ic_dns, "Jobs" to R.drawable.ic_history)
 
 /**
  * Home (v2 §1): Lookup · IPs · Jobs for the active instance ([InstanceStore.lastUsedId]),
@@ -92,7 +95,7 @@ fun InstanceHome(
                                 modifier = Modifier.widthIn(max = 180.dp),
                             )
                         },
-                        trailingIcon = { Text("▾") },
+                        trailingIcon = { Icon(painterResource(R.drawable.ic_expand_more), null) },
                     )
                     if (active != null) TextButton(onClick = { onSettings(active.id) }) { Text("Settings") }
                 },
@@ -101,11 +104,11 @@ fun InstanceHome(
         bottomBar = {
             if (active != null) {
                 NavigationBar {
-                    Tabs.forEachIndexed { i, (label, glyph) ->
+                    Tabs.forEachIndexed { i, (label, icon) ->
                         NavigationBarItem(
                             selected = tab == i,
                             onClick = { tab = i },
-                            icon = { Text(glyph) },
+                            icon = { Icon(painterResource(icon), null) },
                             label = { Text(label) },
                         )
                     }
