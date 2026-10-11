@@ -1,6 +1,5 @@
 package io.github.overcuriousity.peephole.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,9 +10,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -90,8 +90,8 @@ fun ProbeScreen(
     Scaffold(topBar = { TopAppBar(title = { Text("Probe") }, navigationIcon = { BackButton(onBack) }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             FieldLabel("Target")
-            Text(addr, style = Mono)
-            Spacer(Modifier.height(16.dp))
+            Text(addr, style = MonoMedium)
+            Spacer(Modifier.height(Spacing.md))
             FieldLabel("Vantages")
             val r = offers
             when {
@@ -105,8 +105,8 @@ fun ProbeScreen(
                         )
                         Text(v.name, Modifier.weight(1f))
                         v.country?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        Spacer(Modifier.width(12.dp))
-                        Text("${v.credits} credits", style = Mono)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("${v.credits} credits", style = MonoMedium)
                     }
                 }
                 blind -> Text(
@@ -119,15 +119,15 @@ fun ProbeScreen(
                     ErrorBanner(probeProblem(r, instance.instanceName), if (refused) null else retry)
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 "Each vantage charges its probe price; one that declines or gets no answer in 15 minutes " +
                     "charges nothing.",
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             error?.let { e ->
                 ErrorBanner(probeProblem(e, instance.instanceName), null)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.md))
             }
             Button(
                 onClick = {
@@ -238,57 +238,60 @@ fun ScanConfirmScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             FieldLabel("Target")
-            Text(addr, style = Mono)
-            Spacer(Modifier.height(8.dp))
+            Text(addr, style = MonoMedium)
+            Spacer(Modifier.height(Spacing.sm))
             FieldLabel("Level")
             Text("L$level" + (q?.offer?.about?.takeIf { it.isNotBlank() }?.let { " — $it" } ?: ""))
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
 
-            Column(
-                Modifier.fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(10.dp))
-                    .padding(16.dp),
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                elevation = CardDefaults.cardElevation(0.dp),
             ) {
-                val r = quote
-                when {
-                    r == null -> SkeletonRows(2)
-                    r !is ApiResult.Ok -> {
-                        Text(quoteProblem(r, instance.instanceName), color = MaterialTheme.colorScheme.error)
-                        if (r !is ApiResult.Failed || r.status != 409) {
-                            OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
+                Column(Modifier.padding(16.dp)) {
+                    val r = quote
+                    when {
+                        r == null -> SkeletonRows(2)
+                        r !is ApiResult.Ok -> {
+                            Text(quoteProblem(r, instance.instanceName), color = MaterialTheme.colorScheme.error)
+                            if (r !is ApiResult.Failed || r.status != 409) {
+                                OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
+                            }
                         }
-                    }
-                    buyError != null -> {
-                        val e = buyError!!
-                        Text(
-                            if (e is ApiResult.Failed) scanConflict(e) else e.describe(instance.instanceName),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        OutlinedButton(onClick = { attempt++ }) { Text("Get a new quote") }
-                    }
-                    expired -> {
-                        Text("Quote expired — get a new one.", color = MaterialTheme.colorScheme.error)
-                        OutlinedButton(onClick = { attempt++ }) { Text("Re-quote") }
-                    }
-                    else -> {
-                        FieldLabel("Cost")
-                        Text(costText(q!!), style = MaterialTheme.typography.headlineSmall)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Quote expires in ${left / 60}:${(left % 60).toString().padStart(2, '0')}")
+                        buyError != null -> {
+                            val e = buyError!!
+                            Text(
+                                if (e is ApiResult.Failed) scanConflict(e) else e.describe(instance.instanceName),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            OutlinedButton(onClick = { attempt++ }) { Text("Get a new quote") }
+                        }
+                        expired -> {
+                            Text("Quote expired — get a new one.", color = MaterialTheme.colorScheme.error)
+                            OutlinedButton(onClick = { attempt++ }) { Text("Re-quote") }
+                        }
+                        else -> {
+                            FieldLabel("Cost")
+                            Text(costText(q!!), style = MaterialTheme.typography.headlineSmall)
+                            Spacer(Modifier.height(Spacing.sm))
+                            Text("Quote expires in ${left / 60}:${(left % 60).toString().padStart(2, '0')}")
+                        }
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 "A counter-scan probes the live host from a scanner. It can take several minutes and the " +
                     "result is kept in the dataset. Credits are charged when a scanner runs the job; " +
                     "whichever scanner wins it, the charge stays within the range shown.",
             )
             if (!instance.canAct) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Spacing.sm))
                 Text(READ_ONLY, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Spacing.lg))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Cancel") }
                 Button(

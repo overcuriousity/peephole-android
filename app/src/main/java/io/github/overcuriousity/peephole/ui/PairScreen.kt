@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -166,14 +164,14 @@ private fun ManualEntry(onSubmit: (String, String, String) -> Boolean) {
     var spki by remember { mutableStateOf("") }
     var invalid by remember { mutableStateOf(false) }
     Text("Copy these from the instance's pairing page.")
-    OutlinedTextField(origin, { origin = it }, label = { Text("Origin") }, singleLine = true, textStyle = Mono, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(code, { code = it }, label = { Text("Pairing code") }, singleLine = true, textStyle = Mono, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(origin, { origin = it }, label = { Text("Origin") }, singleLine = true, textStyle = MonoMedium, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(code, { code = it }, label = { Text("Pairing code") }, singleLine = true, textStyle = MonoMedium, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(
         spki,
         { spki = it },
         label = { Text("TLS SPKI SHA-256 (if shown)") },
         singleLine = true,
-        textStyle = Mono,
+        textStyle = MonoMedium,
         modifier = Modifier.fillMaxWidth(),
     )
     if (invalid) ErrorBanner("That isn't a valid https origin, pairing code and (optional) pin.")
@@ -201,7 +199,7 @@ private fun ConfirmStep(state: PairState.Confirm, onConfirm: (String) -> Unit, o
     Text("You're about to pair with:")
     // The bare origin, never a display name: the QR is untrusted input and
     // this is where a human catches an unexpected host.
-    Text(state.payload.originText, style = Mono.copy(fontSize = MaterialTheme.typography.titleMedium.fontSize))
+    Text(state.payload.originText, style = MonoMedium.copy(fontSize = MaterialTheme.typography.titleMedium.fontSize))
     OutlinedTextField(
         deviceName,
         { deviceName = it.take(80) },
@@ -216,7 +214,7 @@ private fun ConfirmStep(state: PairState.Confirm, onConfirm: (String) -> Unit, o
     )
     if (state.payload.spkiSha256 != null) Text("🔒 Certificate pinned", color = Success)
     state.error?.let { ErrorBanner(it) }
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(Spacing.sm))
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedButton(onClick = onCancel, enabled = !state.busy) { Text("Cancel") }
         Button(onClick = { onConfirm(deviceName.trim()) }, enabled = !state.busy && nameOk && waitSeconds == 0L) {
@@ -230,17 +228,6 @@ private fun ConfirmStep(state: PairState.Confirm, onConfirm: (String) -> Unit, o
         }
         if (state.busy) CircularProgressIndicator(Modifier.height(24.dp))
     }
-}
-
-@Composable
-fun ErrorBanner(text: String) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) { Text(text, Modifier.padding(12.dp)) }
 }
 
 private fun hasCamera(context: Context) =

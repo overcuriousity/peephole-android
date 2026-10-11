@@ -42,6 +42,12 @@ Runtime (all open source, from Google Maven and Maven Central):
 
 Test only: JUnit 4, OkHttp MockWebServer 3 and okhttp-tls.
 
+Bundled assets, not libraries: the fonts Inter 4.1 and JetBrains Mono 2.304
+(`app/src/main/res/font/`, SIL OFL 1.1, licence texts in
+`app/src/main/assets/licenses/`) and nine Material Symbols Outlined vector
+icons (`app/src/main/res/drawable/ic_*.xml`, Apache-2.0, from
+`google/material-design-icons`).
+
 Exact versions are in [`gradle/libs.versions.toml`](gradle/libs.versions.toml),
 and every artifact's SHA-256 is checked against
 [`gradle/verification-metadata.xml`](gradle/verification-metadata.xml).

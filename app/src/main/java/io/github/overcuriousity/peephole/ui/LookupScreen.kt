@@ -2,16 +2,21 @@ package io.github.overcuriousity.peephole.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -26,8 +31,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.overcuriousity.peephole.R
 import io.github.overcuriousity.peephole.lookup.LookupRequestPlan
 import io.github.overcuriousity.peephole.lookup.ScanOutcome
 import io.github.overcuriousity.peephole.lookup.nameRows
@@ -137,6 +144,8 @@ fun LookupScreen(
                     )
                 }
                 FilledTonalButton(onClick = onScan, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Icon(painterResource(R.drawable.ic_qr_code_scanner), null, Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text("Scan QR")
                 }
             }
@@ -146,7 +155,7 @@ fun LookupScreen(
         val p = plan
         // v2 §3.2: a name waits on DNS, not a dataset read, so it says so.
         if (busy && p != null) {
-            items(p.names) { host -> ListItem(headlineContent = { Text(host, style = Mono) }, supportingContent = { Text("Resolving…") }) }
+            items(p.names) { host -> ListItem(headlineContent = { Text(host, style = MonoMedium) }, supportingContent = { Text("Resolving…") }) }
         }
         when (val r = result) {
             null -> {}
@@ -156,7 +165,7 @@ fun LookupScreen(
                 // Unreadable entries are never sent; they are listed below the names as the server listed them in v1.
                 lookupRows(r.value.copy(unreadable = r.value.unreadable + p?.invalid.orEmpty()), names.isNotEmpty(), onOpenIp)
             }
-            else -> item { ErrorBanner(r.describe(instanceName.orEmpty()), ::submit) }
+            else -> item { ErrorBanner(r.describe(instanceName.orEmpty()), ::submit, EdgeBanner) }
         }
     }
 }
@@ -165,7 +174,7 @@ fun LookupScreen(
 private fun Banner(text: String) {
     Text(
         text,
-        style = Mono,
+        style = MonoMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
@@ -187,7 +196,7 @@ private fun UnreadableBanner(scan: ScanOutcome.Unreadable) {
     ) {
         Text(
             scan.text,
-            style = Mono,
+            style = MonoMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
             maxLines = if (expanded) Int.MAX_VALUE else 6,
             overflow = TextOverflow.Ellipsis,
@@ -212,11 +221,11 @@ private fun LazyListScope.lookupRows(r: LookupResult, hasNames: Boolean, onOpenI
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
     items(r.missing) { addr ->
-        ListItem(headlineContent = { Text(addr, style = Mono) }, supportingContent = { Text("— not stored") })
+        ListItem(headlineContent = { Text(addr, style = MonoMedium) }, supportingContent = { Text("— not stored") })
     }
     items(r.unreadable) { line ->
         ListItem(
-            headlineContent = { Text(line, style = Mono) },
+            headlineContent = { Text(line, style = MonoMedium) },
             supportingContent = { Text("unreadable: neither an address nor a network", color = MaterialTheme.colorScheme.error) },
         )
     }

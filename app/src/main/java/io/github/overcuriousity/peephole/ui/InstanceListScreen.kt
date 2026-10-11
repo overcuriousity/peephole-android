@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -21,8 +22,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.overcuriousity.peephole.R
 import io.github.overcuriousity.peephole.store.Instance
 import io.github.overcuriousity.peephole.store.InstanceStore
 import java.text.DateFormat
@@ -35,7 +38,11 @@ fun InstanceListScreen(store: InstanceStore, onPair: () -> Unit, onOpen: (String
     Scaffold(
         topBar = { TopAppBar(title = { Text("peephole") }) },
         floatingActionButton = {
-            if (instances.isNotEmpty()) ExtendedFloatingActionButton(onClick = onPair) { Text("+ Pair") }
+            if (instances.isNotEmpty()) ExtendedFloatingActionButton(
+                onClick = onPair,
+                icon = { Icon(painterResource(R.drawable.ic_add), null) },
+                text = { Text("Pair") },
+            )
         },
     ) { padding ->
         if (instances.isEmpty()) {
@@ -69,7 +76,7 @@ internal fun InstanceRow(instance: Instance, selected: Boolean = false, onClick:
             Column {
                 Text(
                     instance.origin,
-                    style = Mono,
+                    style = MonoMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.MiddleEllipsis,

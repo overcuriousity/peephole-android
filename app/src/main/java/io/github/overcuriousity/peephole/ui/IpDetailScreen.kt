@@ -1,6 +1,5 @@
 package io.github.overcuriousity.peephole.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,7 +66,7 @@ fun IpDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(addr, style = Mono, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
+                title = { Text(addr, style = MonoMedium, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
                 navigationIcon = { BackButton(onBack) },
             )
         },
@@ -83,7 +83,7 @@ fun IpDetailScreen(
                         modifier = Modifier.padding(16.dp),
                     )
                 } else {
-                    ErrorBanner(r.describe(instance.instanceName)) { attempt++ }
+                    ErrorBanner(r.describe(instance.instanceName), { attempt++ }, EdgeBanner)
                 }
             }
         }
@@ -100,7 +100,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
             if (ip.severity == null) Text("—", style = MaterialTheme.typography.titleLarge) else SeverityChip(ip.severity)
         }
     }
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(Spacing.sm))
     if (ip.labels.isNotEmpty() || ip.families.isNotEmpty()) {
         Section("Verdict") {
             if (ip.labels.isNotEmpty()) Text(ip.labels.joinToString(" · "))
@@ -126,7 +126,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
     if (ip.names.isNotEmpty() || ip.neighbours != null) {
         Section("Names and neighbours", initiallyOpen = false) {
             ip.names.forEach { n ->
-                Text(n.name, style = Mono)
+                Text(n.name, style = MonoMedium)
                 Text(
                     n.source + if (n.agreed) " · resolvers agree" else "",
                     style = MaterialTheme.typography.bodySmall,
@@ -134,7 +134,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
                 )
             }
             ip.neighbours?.let { nb ->
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Spacing.sm))
                 Text("${nb.net ?: "network"}: ${count(nb.otherIps)} other addresses · ${count(nb.sameAsn)} in the same ASN")
             }
         }
@@ -154,7 +154,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
 @Composable
 private fun Identity(addr: String, ip: IpDetail?) {
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
-        SelectionContainer { Text(addr, style = Mono.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize)) }
+        SelectionContainer { Text(addr, style = MonoMedium.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize)) }
         if (ip != null) {
             val place = listOfNotNull(
                 ip.geo.country,
@@ -170,13 +170,15 @@ private fun Identity(addr: String, ip: IpDetail?) {
 
 @Composable
 private fun Tile(label: String, modifier: Modifier, value: @Composable () -> Unit) {
-    Column(
-        modifier
-            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(6.dp))
-            .padding(12.dp),
+    Card(
+        modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(0.dp),
     ) {
-        FieldLabel(label)
-        value()
+        Column(Modifier.padding(12.dp)) {
+            FieldLabel(label)
+            value()
+        }
     }
 }
 
@@ -190,7 +192,7 @@ fun ScanBlock(scan: ScanResult) {
         scan.ports.forEach { p ->
             Text(
                 listOfNotNull("${p.port}", p.service, p.product).joinToString("  "),
-                style = Mono,
+                style = MonoMedium,
             )
         }
     }

@@ -77,8 +77,8 @@ private fun AddressRow(vote: AddrVote, severity: Int?, notStored: Boolean, onOpe
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(vote.ip, style = Mono, maxLines = 1, overflow = TextOverflow.MiddleEllipsis, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp))
+                Text(vote.ip, style = MonoMedium, maxLines = 1, overflow = TextOverflow.MiddleEllipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(Spacing.sm))
                 if (notStored) Text("not stored", color = MaterialTheme.colorScheme.onSurfaceVariant) else SeverityChip(severity)
             }
         },
@@ -105,7 +105,7 @@ private fun Line(text: String, color: Color, mono: Boolean = false) {
     Text(
         text,
         color = color,
-        style = if (mono) Mono else MaterialTheme.typography.bodyMedium,
+        style = if (mono) MonoMedium else MaterialTheme.typography.bodyMedium,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
     )
 }

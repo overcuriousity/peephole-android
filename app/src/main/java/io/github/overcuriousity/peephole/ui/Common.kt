@@ -1,5 +1,9 @@
 package io.github.overcuriousity.peephole.ui
 
+import android.provider.Settings
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,10 +16,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -31,13 +41,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
+import io.github.overcuriousity.peephole.R
 import io.github.overcuriousity.peephole.net.ApiResult
 import java.text.NumberFormat
 import java.time.Duration
@@ -85,15 +101,7 @@ fun isResumed(): Boolean {
 @Composable
 fun SeverityChip(severity: Int?) {
     if (severity == null) return
-    val color = SeverityColors[severity.coerceIn(0, SeverityColors.lastIndex)]
-    Text(
-        "● sev $severity",
-        color = color,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier
-            .background(color.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-    )
+    ToneChip("● sev $severity", SeverityColors[severity.coerceIn(0, SeverityColors.lastIndex)])
 }
 
 /** A job status with its tone; the word carries the meaning, not only the colour. */
@@ -105,27 +113,41 @@ fun StatusBadge(status: String) {
         "failed", "declined", "lapsed" -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Text(
-        status.ifBlank { "unknown" },
-        color = color,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier
-            .background(color.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+    ToneChip(status.ifBlank { "unknown" }, color)
+}
+
+/**
+ * A read-only label on a tinted chip (v2 §4 item 5). It does nothing on tap,
+ * so it is read as its text, not announced as a button.
+ */
+@Composable
+private fun ToneChip(text: String, color: Color) {
+    AssistChip(
+        onClick = {},
+        label = { Text(text) },
+        colors = AssistChipDefaults.assistChipColors(containerColor = color.copy(alpha = 0.16f), labelColor = color),
+        border = null,
+        modifier = Modifier.clearAndSetSemantics { contentDescription = text },
     )
 }
 
+/** Insets an [ErrorBanner] that sits in an edge-to-edge list or column. */
+val EdgeBanner = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
+
+/** The one error pattern (v1 §5, v2 §4 item 4): the message, and Retry when there is one. */
 @Composable
-fun ErrorBanner(message: String, onRetry: (() -> Unit)?) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.errorContainer)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+fun ErrorBanner(message: String, onRetry: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Text(message, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
-        if (onRetry != null) TextButton(onClick = onRetry) { Text("Retry") }
+        Row(Modifier.padding(start = 12.dp, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+            Text(message, Modifier.weight(1f).padding(vertical = 12.dp))
+            if (onRetry != null) TextButton(onClick = onRetry) { Text("Retry") }
+        }
     }
 }
 
@@ -162,6 +184,13 @@ fun FieldLabel(text: String) {
     Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
+/** True when the system animator duration scale is 0 (Settings → Remove animations). */
+@Composable
+fun reducedMotion(): Boolean {
+    val resolver = LocalContext.current.contentResolver
+    return remember(resolver) { Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+}
+
 /** A collapsible section with a heading row that is a 48dp touch target. */
 @Composable
 fun Section(title: String, initiallyOpen: Boolean = true, content: @Composable () -> Unit) {
@@ -171,7 +200,14 @@ fun Section(title: String, initiallyOpen: Boolean = true, content: @Composable (
             Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { open = !open }.padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(if (open) "▾" else "▸", modifier = Modifier.width(20.dp))
+            // Down when closed, up when open; snaps instead of turning under reduced motion (v2 §5).
+            val turn by animateFloatAsState(
+                if (open) 180f else 0f,
+                if (reducedMotion()) snap() else tween(),
+                label = "chevron",
+            )
+            Icon(painterResource(R.drawable.ic_expand_more), null, Modifier.size(20.dp).rotate(turn))
+            Spacer(Modifier.width(Spacing.sm))
             Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.semantics { heading() })
         }
         if (open) {
@@ -205,9 +241,9 @@ fun RevokedScreen(instanceName: String, onPairAgain: () -> Unit, onRemove: () ->
                 "This device's pairing with $instanceName was revoked. Pair again to continue.",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Spacing.lg))
             Button(onClick = onPairAgain, modifier = Modifier.fillMaxWidth()) { Text("Pair again") }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
             OutlinedButton(onClick = onRemove, modifier = Modifier.fillMaxWidth()) { Text("Remove instance") }
         }
     }
