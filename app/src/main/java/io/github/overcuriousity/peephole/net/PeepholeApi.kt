@@ -65,8 +65,9 @@ class PeepholeApi(
 
     fun ip(addr: String): ApiResult<IpDetail> = get(IpDetail.serializer(), url("ips", addr))
 
-    fun lookup(entries: List<String>): ApiResult<LookupResult> =
-        post(LookupResult.serializer(), url("lookup"), encode(LookupRequest.serializer(), LookupRequest(entries)))
+    /** `ips` is always sent (an old server requires it); `names` only when there are any. */
+    fun lookup(ips: List<String>, names: List<String> = emptyList()): ApiResult<LookupResult> =
+        post(LookupResult.serializer(), url("lookup"), encode(LookupRequest.serializer(), LookupRequest(ips, names)))
 
     /** Starts a probe with the default vantage pick of the admin Actions card. */
     fun probe(addr: String): ApiResult<ProbeStarted> =
@@ -134,7 +135,7 @@ class PeepholeApi(
     }
 
     @Serializable
-    private class LookupRequest(val ips: List<String>)
+    private class LookupRequest(val ips: List<String>, val names: List<String> = emptyList())
 
     @Serializable
     private class BuyRequest(@SerialName("quote_id") val quoteId: String)
