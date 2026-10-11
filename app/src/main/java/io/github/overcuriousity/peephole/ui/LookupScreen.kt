@@ -23,6 +23,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.overcuriousity.peephole.lookup.LookupRequestPlan
+import io.github.overcuriousity.peephole.lookup.planLookup
 import io.github.overcuriousity.peephole.net.ApiResult
 import io.github.overcuriousity.peephole.net.LookupResult
 import io.github.overcuriousity.peephole.net.PeepholeApi
@@ -39,15 +41,22 @@ fun LookupScreen(api: PeepholeApi, instanceName: String, onOpenIp: (String) -> U
     var input by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<ApiResult<LookupResult>?>(null) }
+    var plan by remember { mutableStateOf<LookupRequestPlan?>(null) }
     val scope = rememberCoroutineScope()
     RevokedEffect(result, onRevoked)
 
     fun submit() {
         val entries = lookupEntries(input)
         if (entries.isEmpty() || busy) return
+        val p = planLookup(entries)
+        plan = p
+        if (p.sendsNothing) {
+            result = ApiResult.Ok(LookupResult())
+            return
+        }
         busy = true
         scope.launch {
-            result = withContext(Dispatchers.IO) { api.lookup(entries) }
+            result = withContext(Dispatchers.IO) { api.lookup(p.ips, p.names) }
             busy = false
         }
     }
@@ -70,7 +79,9 @@ fun LookupScreen(api: PeepholeApi, instanceName: String, onOpenIp: (String) -> U
         }
         when (val r = result) {
             null -> {}
-            is ApiResult.Ok -> lookupRows(r.value, onOpenIp)
+            // Unreadable entries are never sent; they are listed here as the server listed them in v1.
+            // Name cards (nameRows over plan.names) come in S2.
+            is ApiResult.Ok -> lookupRows(r.value.copy(unreadable = r.value.unreadable + plan?.invalid.orEmpty()), onOpenIp)
             else -> item { ErrorBanner(r.describe(instanceName), ::submit) }
         }
     }
