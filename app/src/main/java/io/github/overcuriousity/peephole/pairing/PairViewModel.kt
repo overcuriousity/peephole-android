@@ -51,6 +51,11 @@ class PairViewModel(
         }
     }
 
+    /** A payload Home's scanner already parsed (v2 §2.2): straight to Confirm. */
+    fun confirmScanned(payload: PairingPayload) {
+        _state.value = PairState.Confirm(payload, now())
+    }
+
     fun manual(origin: String, code: String, spki: String): Boolean {
         val payload = PairingPayload.of(origin, code, spki) ?: return false
         _state.value = PairState.Confirm(payload, now())
