@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -27,12 +29,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.overcuriousity.peephole.net.ApiResult
 import io.github.overcuriousity.peephole.net.PeepholeApi
 import io.github.overcuriousity.peephole.net.ProbeStarted
 import io.github.overcuriousity.peephole.net.ScanQuote
+import io.github.overcuriousity.peephole.net.VantageOffer
+import io.github.overcuriousity.peephole.net.VantageOffers
 import io.github.overcuriousity.peephole.store.Instance
 import io.github.overcuriousity.peephole.store.JobLog
 import io.github.overcuriousity.peephole.store.JobRef
@@ -46,9 +51,10 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Design §6.6. The probe goes out with the instance's default vantage pick
- * (api-v1 has no vantage list or probe quote); what each vantage costs is
- * shown once it starts, on the job screen this hands over to.
+ * Design §6.6. The live scanners with their probe prices, ticked as the
+ * Actions card ticks them, and the total on the button. An instance without
+ * the vantage list (404) gets the blind probe: its default pick, priced once
+ * it starts on the job screen this hands over to.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,36 +67,75 @@ fun ProbeScreen(
     onStarted: (jobId: String) -> Unit,
     onRevoked: () -> Unit,
 ) {
+    var attempt by remember { mutableIntStateOf(0) }
+    var offers by remember { mutableStateOf<ApiResult<VantageOffers>?>(null) }
+    var ticked by remember { mutableStateOf(emptySet<String>()) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<ApiResult<ProbeStarted>?>(null) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(attempt) {
+        offers = null
+        val r = withContext(Dispatchers.IO) { api.probeVantages(addr) }
+        if (r is ApiResult.Ok) ticked = r.value.vantages.filter { it.default }.map { it.id }.toSet()
+        offers = r
+    }
+    RevokedEffect(offers, onRevoked)
     RevokedEffect(error, onRevoked)
+
+    val listed = (offers as? ApiResult.Ok)?.value?.vantages
+    val blind = (offers as? ApiResult.Failed)?.status == 404
+    val ready = (listed != null && listed.any { it.id in ticked }) || blind
 
     Scaffold(topBar = { TopAppBar(title = { Text("Probe") }, navigationIcon = { BackButton(onBack) }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             FieldLabel("Target")
             Text(addr, style = Mono)
             Spacer(Modifier.height(16.dp))
+            FieldLabel("Vantages")
+            val r = offers
+            when {
+                r == null -> SkeletonRows(2)
+                listed != null -> listed.forEach { v ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = v.id in ticked,
+                            onCheckedChange = { on -> ticked = if (on) ticked + v.id else ticked - v.id },
+                            enabled = instance.canAct && !busy,
+                        )
+                        Text(v.name, Modifier.weight(1f))
+                        v.country?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Spacer(Modifier.width(12.dp))
+                        Text("${v.credits} credits", style = Mono)
+                    }
+                }
+                blind -> Text(
+                    "${instance.instanceName} does not list its vantages; the probe goes to its default pick " +
+                        "and the prices show once it starts.",
+                )
+                else -> {
+                    val retry: () -> Unit = { attempt++ }
+                    val refused = r is ApiResult.Failed && r.code == "refused"
+                    ErrorBanner(probeProblem(r, instance.instanceName), if (refused) null else retry)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
             Text(
-                "${instance.instanceName} probes the address from its default vantage points, as the Actions card " +
-                    "on its IP page does. Each vantage charges its probe price; one that declines or gets no " +
-                    "answer in 15 minutes charges nothing. The prices show once the probe starts.",
+                "Each vantage charges its probe price; one that declines or gets no answer in 15 minutes " +
+                    "charges nothing.",
             )
             Spacer(Modifier.height(16.dp))
             error?.let { e ->
-                val message = when {
-                    e is ApiResult.Failed && e.code == "refused" -> "${instance.instanceName} won't probe this address: ${e.message}"
-                    e is ApiResult.Failed && e.status == 404 -> "Not recorded here: not in the dataset."
-                    else -> e.describe(instance.instanceName)
-                }
-                ErrorBanner(message, null)
+                ErrorBanner(probeProblem(e, instance.instanceName), null)
                 Spacer(Modifier.height(16.dp))
             }
             Button(
                 onClick = {
                     busy = true
+                    error = null
+                    val picked = listed?.map { it.id }?.filter { it in ticked }
                     scope.launch {
-                        when (val r = withContext(Dispatchers.IO) { api.probe(addr) }) {
+                        when (val r = withContext(Dispatchers.IO) { api.probe(addr, picked) }) {
                             is ApiResult.Ok -> {
                                 jobs.add(
                                     JobRef(
@@ -109,13 +154,38 @@ fun ProbeScreen(
                         busy = false
                     }
                 },
-                enabled = instance.canAct && !busy,
+                enabled = instance.canAct && !busy && ready,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (busy) "Starting…" else "Probe $addr") }
+            ) {
+                Text(
+                    when {
+                        busy -> "Starting…"
+                        listed != null -> probeButtonText(listed, ticked)
+                        else -> "Probe $addr"
+                    },
+                )
+            }
             if (!instance.canAct) Text(READ_ONLY, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
+
+/** Why the vantage list or the probe failed, in plain words. */
+private fun probeProblem(r: ApiResult<*>, instanceName: String): String = when {
+    r is ApiResult.Failed && r.code == "refused" -> "$instanceName won't probe this address: ${r.message}"
+    r is ApiResult.Failed && r.status == 404 -> "Not recorded here: not in the dataset."
+    else -> r.describe(instanceName)
+}
+
+/** Credits as the instance prints them (peephole `credits::show`): millicredits to the nearest cent. */
+fun showCredits(mc: Long): String {
+    val cents = (mc + 5) / 10
+    return "${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
+}
+
+/** The commit button: the total of the ticked vantages, in the order the instance listed them. */
+fun probeButtonText(offers: List<VantageOffer>, ticked: Set<String>): String =
+    "Probe · ${showCredits(offers.filter { it.id in ticked }.sumOf { it.creditsMc })} credits"
 
 /**
  * Design §6.7: the one money surface. A fresh quote on entry, its price on

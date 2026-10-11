@@ -115,6 +115,30 @@ class PeepholeApiTest {
     }
 
     @Test
+    fun theVantageListDecodesAndThePickedOnesAreSent() {
+        server.enqueue(
+            MockResponse(
+                body = """{"vantages":[{"id":"n1","name":"fra-1","country":"DE","credits":"0.10","credits_mc":100,"default":true},""" +
+                    """{"id":"n2","name":"nyc-1","country":null,"credits":"0.25","credits_mc":250,"default":false}]}""",
+            ),
+        )
+        server.enqueue(MockResponse(code = 202, body = """{"job_id":"p_7","credits":"0.10","credits_mc":100}"""))
+
+        val offers = (api().probeVantages("203.0.113.9") as ApiResult.Ok).value.vantages
+        val started = api().probe("203.0.113.9", listOf("n1"))
+
+        assertEquals(VantageOffer("n1", "fra-1", "DE", "0.10", 100, true), offers[0])
+        assertEquals(VantageOffer("n2", "nyc-1", null, "0.25", 250, false), offers[1])
+        assertEquals("p_7", (started as ApiResult.Ok).value.jobId)
+        val list = server.takeRequest()
+        assertEquals("GET", list.method)
+        assertEquals("/api/v1/ips/203.0.113.9/probe/vantages", list.url.encodedPath)
+        val probe = server.takeRequest()
+        assertEquals("/api/v1/ips/203.0.113.9/probe", probe.url.encodedPath)
+        assertEquals("""{"vantages":["n1"]}""", probe.body!!.utf8())
+    }
+
+    @Test
     fun aProbeJobDecodesItsVantages() {
         server.enqueue(
             MockResponse(
