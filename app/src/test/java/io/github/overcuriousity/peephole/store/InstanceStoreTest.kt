@@ -65,4 +65,41 @@ class InstanceStoreTest {
         assertNull(store.token("a"))
         assertEquals("token-b", store.token("b")!!.value)
     }
+
+    @Test
+    fun lastUsedDefaultsToNewest() {
+        val store = InstanceStore(kv, FakeCipher)
+        assertNull(store.lastUsedId)
+        store.add(instance("a", "https://a.example"), Secret("token-a"))
+        store.add(instance("b", "https://b.example"), Secret("token-b"))
+
+        assertEquals("b", store.lastUsedId)
+    }
+
+    @Test
+    fun lastUsedSurvivesReload() {
+        val store = InstanceStore(kv, FakeCipher)
+        store.add(instance("a", "https://a.example"), Secret("token-a"))
+        store.add(instance("b", "https://b.example"), Secret("token-b"))
+        store.lastUsedId = "a"
+
+        assertEquals("a", InstanceStore(kv, FakeCipher).lastUsedId)
+    }
+
+    @Test
+    fun removingLastUsedFallsBack() {
+        val store = InstanceStore(kv, FakeCipher)
+        store.add(instance("a", "https://a.example"), Secret("token-a"))
+        store.add(instance("b", "https://b.example"), Secret("token-b"))
+        store.add(instance("c", "https://c.example"), Secret("token-c"))
+        store.lastUsedId = "a"
+
+        store.remove("a")
+
+        assertEquals("c", store.lastUsedId)
+        assertNull(kv.map["lastUsed"])
+        store.remove("b")
+        store.remove("c")
+        assertNull(store.lastUsedId)
+    }
 }

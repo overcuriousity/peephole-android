@@ -58,10 +58,12 @@ fun InstanceListScreen(store: InstanceStore, onPair: () -> Unit, onOpen: (String
     }
 }
 
+/** One paired instance; also the row of Home's instance switcher, where [selected] marks the active one. */
 @Composable
-private fun InstanceRow(instance: Instance, onClick: () -> Unit) {
+internal fun InstanceRow(instance: Instance, selected: Boolean = false, onClick: () -> Unit) {
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
+        trailingContent = if (selected) ({ Text("✓ active", color = MaterialTheme.colorScheme.primary) }) else null,
         headlineContent = { Text(instance.instanceName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {

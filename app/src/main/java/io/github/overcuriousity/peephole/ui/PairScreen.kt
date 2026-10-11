@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.overcuriousity.peephole.lookup.ScanOutcome
 import io.github.overcuriousity.peephole.pairing.PairState
 import io.github.overcuriousity.peephole.pairing.PairViewModel
 import io.github.overcuriousity.peephole.pairing.PairingClient
@@ -54,10 +55,18 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PairScreen(store: InstanceStore, client: PairingClient, onClose: () -> Unit) {
+fun PairScreen(store: InstanceStore, client: PairingClient, handoff: ScanHandoff, onClose: () -> Unit) {
     val vm = viewModel { PairViewModel(client, store) }
     val state by vm.state.collectAsState()
     var manual by remember { mutableStateOf(false) }
+
+    // A pairing QR scanned on Home (v2 §2.2) skips the camera here.
+    LaunchedEffect(Unit) {
+        (handoff.pending as? ScanOutcome.Pairing)?.let {
+            handoff.take()
+            vm.confirmScanned(it.payload)
+        }
+    }
 
     // Back from confirm returns to the scanner, not out of pairing (design §6.2).
     BackHandler(enabled = state is PairState.Confirm || manual) {
@@ -101,6 +110,27 @@ fun PairScreen(store: InstanceStore, client: PairingClient, onClose: () -> Unit)
 
 @Composable
 private fun ScanStep(message: String?, onScanned: (String) -> Unit, onManual: () -> Unit) {
+    message?.let { ErrorBanner(it) }
+    Viewfinder(
+        onScanned = onScanned,
+        hint = "Point the camera at the QR code on your peephole admin's pairing page (Admin → Devices).",
+        deniedText = "peephole needs the camera only to read the pairing QR code. Nothing is recorded or sent.",
+        manual = "Can't scan it? Enter the code manually →" to onManual,
+    )
+}
+
+/**
+ * The v1 §6.2 Step 1 viewfinder: asks for the camera, then shows [QrScanner]
+ * and [hint]; on a denial, [deniedText] and a way to settings. [manual] is an
+ * optional way around the camera (label, action).
+ */
+@Composable
+internal fun Viewfinder(
+    onScanned: (String) -> Unit,
+    hint: String,
+    deniedText: String,
+    manual: Pair<String, () -> Unit>? = null,
+) {
     val context = LocalContext.current
     var granted by remember { mutableStateOf(hasCamera(context)) }
     var denied by remember { mutableStateOf(false) }
@@ -110,16 +140,15 @@ private fun ScanStep(message: String?, onScanned: (String) -> Unit, onManual: ()
     }
     LaunchedEffect(Unit) { if (!granted) launcher.launch(Manifest.permission.CAMERA) }
 
-    message?.let { ErrorBanner(it) }
     when {
         granted -> {
             Box(Modifier.fillMaxWidth().aspectRatio(1f)) { QrScanner(onScanned, Modifier.fillMaxWidth().aspectRatio(1f)) }
-            Text("Point the camera at the QR code on your peephole admin's pairing page (Admin → Devices).")
-            TextButton(onClick = onManual) { Text("Can't scan it? Enter the code manually →") }
+            Text(hint)
+            manual?.let { (label, onClick) -> TextButton(onClick = onClick) { Text(label) } }
         }
         denied -> {
-            Text("peephole needs the camera only to read the pairing QR code. Nothing is recorded or sent.")
-            Button(onClick = onManual) { Text("Enter the code manually") }
+            Text(deniedText)
+            manual?.let { (_, onClick) -> Button(onClick = onClick) { Text("Enter the code manually") } }
             OutlinedButton(onClick = {
                 context.startActivity(
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),

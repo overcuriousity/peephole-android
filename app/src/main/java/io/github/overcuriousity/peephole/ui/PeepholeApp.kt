@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -23,34 +24,49 @@ import io.github.overcuriousity.peephole.store.Instance
 fun PeepholeApp(app: PeepholeApplication) {
     val nav = rememberNavController()
     val store = app.store
-    NavHost(nav, startDestination = "instances") {
+    // Activity scoped: survives the scan → home/pair navigation, never saved.
+    val handoff = viewModel<ScanHandoff>()
+    NavHost(nav, startDestination = "home") {
+        composable("home") {
+            InstanceHome(
+                store = store,
+                apiFor = app::api,
+                jobs = app.jobs,
+                handoff = handoff,
+                onScan = { nav.navigate("scan") },
+                onPair = { nav.navigate("pair") },
+                onManage = { nav.navigate("instances") },
+                onSettings = { id -> nav.navigate("instance/$id/settings") },
+                onOpenIp = { instance, addr -> nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}") },
+                onOpenJob = { instance, job -> nav.navigate("instance/${instance.id}/job/${Uri.encode(job)}") },
+                onRevoked = { instance -> nav.revoked(instance.id) },
+            )
+        }
+        composable("scan") {
+            ScanScreen(
+                handoff = handoff,
+                onPairing = { nav.navigate("pair") { popUpTo("scan") { inclusive = true } } },
+                onLookup = { nav.popBackStack("home", inclusive = false) },
+                onClose = { nav.popBackStack() },
+            )
+        }
         composable("instances") {
             InstanceListScreen(
                 store = store,
                 onPair = { nav.navigate("pair") },
-                onOpen = { id -> nav.navigate("instance/$id") },
+                onOpen = { id ->
+                    store.lastUsedId = id
+                    nav.popBackStack("home", inclusive = false)
+                },
             )
         }
         composable("pair") {
             PairScreen(
                 store = store,
                 client = app.pairingClient,
+                handoff = handoff,
                 onClose = { nav.popBackStack() },
             )
-        }
-        composable("instance/{id}") { entry ->
-            Paired(app, entry, nav) { instance, api ->
-                InstanceHome(
-                    api = api,
-                    instance = instance,
-                    jobs = app.jobs,
-                    onBack = { nav.popBackStack() },
-                    onSettings = { nav.navigate("instance/${instance.id}/settings") },
-                    onOpenIp = { addr -> nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}") },
-                    onOpenJob = { job -> nav.navigate("instance/${instance.id}/job/${Uri.encode(job)}") },
-                    onRevoked = { nav.revoked(instance.id) },
-                )
-            }
         }
         composable("instance/{id}/ip/{addr}") { entry ->
             val addr = entry.arguments?.getString("addr").orEmpty()
@@ -116,13 +132,13 @@ fun PeepholeApp(app: PeepholeApplication) {
             val name = remember(id) { store.get(id)?.instanceName ?: "this instance" }
             RevokedScreen(
                 instanceName = name,
-                onPairAgain = { nav.navigate("pair") { popUpTo("instances") } },
+                onPairAgain = { nav.navigate("pair") { popUpTo("home") } },
                 onRemove = {
                     store.remove(id)
                     app.jobs.removeInstance(id)
-                    nav.popBackStack("instances", inclusive = false)
+                    nav.popBackStack("home", inclusive = false)
                 },
-                onClose = { nav.popBackStack("instances", inclusive = false) },
+                onClose = { nav.popBackStack("home", inclusive = false) },
             )
         }
         composable("instance/{id}/settings") { entry ->
@@ -134,7 +150,7 @@ fun PeepholeApp(app: PeepholeApplication) {
                 onClose = {
                     // After an unpair the screens below this one have nothing to show.
                     val id = entry.arguments?.getString("id").orEmpty()
-                    if (store.get(id) == null) nav.popBackStack("instances", inclusive = false) else nav.popBackStack()
+                    if (store.get(id) == null) nav.popBackStack("home", inclusive = false) else nav.popBackStack()
                 },
             )
         }
@@ -154,13 +170,13 @@ private fun Paired(
     val api = remember(id) { app.api(id) }
     if (instance == null || api == null) {
         Text("This instance is no longer paired.", Modifier.padding(16.dp))
-        LaunchedEffect(id) { nav.popBackStack("instances", inclusive = false) }
+        LaunchedEffect(id) { nav.popBackStack("home", inclusive = false) }
         return
     }
     content(instance, api)
 }
 
-private fun NavHostController.revoked(id: String) = navigate("instance/$id/revoked") { popUpTo("instances") }
+private fun NavHostController.revoked(id: String) = navigate("instance/$id/revoked") { popUpTo("home") }
 
 /** The job replaces the probe/confirm screen, so Back from it returns to the address. */
 private fun NavHostController.toJob(id: String, job: String) {
