@@ -146,7 +146,7 @@ fun LookupScreen(
         val p = plan
         // v2 §3.2: a name waits on DNS, not a dataset read, so it says so.
         if (busy && p != null) {
-            items(p.names) { host -> ListItem(headlineContent = { Text(host, style = Mono) }, supportingContent = { Text("Resolving…") }) }
+            items(p.names) { host -> ListItem(headlineContent = { Text(host, style = MonoMedium) }, supportingContent = { Text("Resolving…") }) }
         }
         when (val r = result) {
             null -> {}
@@ -165,7 +165,7 @@ fun LookupScreen(
 private fun Banner(text: String) {
     Text(
         text,
-        style = Mono,
+        style = MonoMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
@@ -187,7 +187,7 @@ private fun UnreadableBanner(scan: ScanOutcome.Unreadable) {
     ) {
         Text(
             scan.text,
-            style = Mono,
+            style = MonoMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
             maxLines = if (expanded) Int.MAX_VALUE else 6,
             overflow = TextOverflow.Ellipsis,
@@ -212,11 +212,11 @@ private fun LazyListScope.lookupRows(r: LookupResult, hasNames: Boolean, onOpenI
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
     items(r.missing) { addr ->
-        ListItem(headlineContent = { Text(addr, style = Mono) }, supportingContent = { Text("— not stored") })
+        ListItem(headlineContent = { Text(addr, style = MonoMedium) }, supportingContent = { Text("— not stored") })
     }
     items(r.unreadable) { line ->
         ListItem(
-            headlineContent = { Text(line, style = Mono) },
+            headlineContent = { Text(line, style = MonoMedium) },
             supportingContent = { Text("unreadable: neither an address nor a network", color = MaterialTheme.colorScheme.error) },
         )
     }

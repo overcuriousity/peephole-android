@@ -66,7 +66,7 @@ fun IpDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(addr, style = Mono, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
+                title = { Text(addr, style = MonoMedium, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
                 navigationIcon = { BackButton(onBack) },
             )
         },
@@ -100,7 +100,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
             if (ip.severity == null) Text("—", style = MaterialTheme.typography.titleLarge) else SeverityChip(ip.severity)
         }
     }
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(Spacing.sm))
     if (ip.labels.isNotEmpty() || ip.families.isNotEmpty()) {
         Section("Verdict") {
             if (ip.labels.isNotEmpty()) Text(ip.labels.joinToString(" · "))
@@ -126,7 +126,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
     if (ip.names.isNotEmpty() || ip.neighbours != null) {
         Section("Names and neighbours", initiallyOpen = false) {
             ip.names.forEach { n ->
-                Text(n.name, style = Mono)
+                Text(n.name, style = MonoMedium)
                 Text(
                     n.source + if (n.agreed) " · resolvers agree" else "",
                     style = MaterialTheme.typography.bodySmall,
@@ -134,7 +134,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
                 )
             }
             ip.neighbours?.let { nb ->
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Spacing.sm))
                 Text("${nb.net ?: "network"}: ${count(nb.otherIps)} other addresses · ${count(nb.sameAsn)} in the same ASN")
             }
         }
@@ -154,7 +154,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
 @Composable
 private fun Identity(addr: String, ip: IpDetail?) {
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
-        SelectionContainer { Text(addr, style = Mono.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize)) }
+        SelectionContainer { Text(addr, style = MonoMedium.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize)) }
         if (ip != null) {
             val place = listOfNotNull(
                 ip.geo.country,
@@ -190,7 +190,7 @@ fun ScanBlock(scan: ScanResult) {
         scan.ports.forEach { p ->
             Text(
                 listOfNotNull("${p.port}", p.service, p.product).joinToString("  "),
-                style = Mono,
+                style = MonoMedium,
             )
         }
     }

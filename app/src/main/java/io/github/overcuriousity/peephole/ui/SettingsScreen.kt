@@ -58,26 +58,26 @@ fun SettingsScreen(
         }
         Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             Label("Origin")
-            Text(instance.origin, style = Mono)
-            Spacer(Modifier.height(16.dp))
+            Text(instance.origin, style = MonoMedium)
+            Spacer(Modifier.height(Spacing.md))
             Label("Device name")
             Text(instance.deviceName)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             Label("Paired")
             Text("${shortDate(instance.pairedAtEpochMs)} · ${scopeLabel(instance)}")
             if (instance.spkiSha256 != null) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.md))
                 Label("Certificate pin (SPKI SHA-256)")
-                Text(instance.spkiSha256, style = Mono)
+                Text(instance.spkiSha256, style = MonoMedium)
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 "Permissions granted here are set by this instance's admin, not by this app.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(Spacing.xl))
             OutlinedButton(onClick = onPairAnother, modifier = Modifier.fillMaxWidth()) { Text("Pair another instance") }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
             Button(
                 onClick = { confirming = true },
                 modifier = Modifier.fillMaxWidth(),

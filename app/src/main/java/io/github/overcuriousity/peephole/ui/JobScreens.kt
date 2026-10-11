@@ -109,7 +109,7 @@ fun JobScreen(
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusBadge(current.status)
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(Spacing.sm))
                     Text("started ${utcTime(current.createdAt)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 ref?.credits?.takeIf { it.isNotBlank() }?.let {
@@ -117,10 +117,10 @@ fun JobScreen(
                 }
                 // No animated progress without a live poll behind it (design §6.8, offline).
                 if (!current.finished && error == null) {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(Spacing.sm))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.md))
                 if (current.kind == "scan") {
                     current.scan()?.let { ScanBlock(it) }
                         ?: Text(if (current.status == "failed") "The scan failed." else "Waiting for a scanner…")
@@ -129,7 +129,7 @@ fun JobScreen(
                     if (vantages.isEmpty()) Text("Waiting for the vantages…")
                     vantages.forEach { VantageBlock(it) }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.md))
                 OutlinedButton(onClick = { onOpenIp(current.ip) }, modifier = Modifier.fillMaxWidth()) { Text("Open ${current.ip}") }
             }
         }
@@ -141,16 +141,16 @@ private fun VantageBlock(v: ProbeVantage) {
     Column(Modifier.padding(bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(v.name.ifBlank { "this node" }, style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(Spacing.sm))
             StatusBadge(v.state)
             v.rttMs?.let {
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(Spacing.sm))
                 Text("$it ms", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         v.why?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (v.state == "lapsed") Text("No result in 15 minutes; nothing charged.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        v.ports.forEach { p -> Text("${p.port}/${p.protocol}  ${p.outcome}", style = Mono) }
+        v.ports.forEach { p -> Text("${p.port}/${p.protocol}  ${p.outcome}", style = MonoMedium) }
     }
 }
 

@@ -69,7 +69,7 @@ internal fun InstanceRow(instance: Instance, selected: Boolean = false, onClick:
             Column {
                 Text(
                     instance.origin,
-                    style = Mono,
+                    style = MonoMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.MiddleEllipsis,

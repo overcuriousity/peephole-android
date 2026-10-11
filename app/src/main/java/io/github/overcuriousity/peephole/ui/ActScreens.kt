@@ -90,8 +90,8 @@ fun ProbeScreen(
     Scaffold(topBar = { TopAppBar(title = { Text("Probe") }, navigationIcon = { BackButton(onBack) }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             FieldLabel("Target")
-            Text(addr, style = Mono)
-            Spacer(Modifier.height(16.dp))
+            Text(addr, style = MonoMedium)
+            Spacer(Modifier.height(Spacing.md))
             FieldLabel("Vantages")
             val r = offers
             when {
@@ -105,8 +105,8 @@ fun ProbeScreen(
                         )
                         Text(v.name, Modifier.weight(1f))
                         v.country?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        Spacer(Modifier.width(12.dp))
-                        Text("${v.credits} credits", style = Mono)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("${v.credits} credits", style = MonoMedium)
                     }
                 }
                 blind -> Text(
@@ -119,15 +119,15 @@ fun ProbeScreen(
                     ErrorBanner(probeProblem(r, instance.instanceName), if (refused) null else retry)
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 "Each vantage charges its probe price; one that declines or gets no answer in 15 minutes " +
                     "charges nothing.",
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             error?.let { e ->
                 ErrorBanner(probeProblem(e, instance.instanceName), null)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.md))
             }
             Button(
                 onClick = {
@@ -238,11 +238,11 @@ fun ScanConfirmScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
             FieldLabel("Target")
-            Text(addr, style = Mono)
-            Spacer(Modifier.height(8.dp))
+            Text(addr, style = MonoMedium)
+            Spacer(Modifier.height(Spacing.sm))
             FieldLabel("Level")
             Text("L$level" + (q?.offer?.about?.takeIf { it.isNotBlank() }?.let { " — $it" } ?: ""))
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
 
             Column(
                 Modifier.fillMaxWidth()
@@ -273,22 +273,22 @@ fun ScanConfirmScreen(
                     else -> {
                         FieldLabel("Cost")
                         Text(costText(q!!), style = MaterialTheme.typography.headlineSmall)
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(Spacing.sm))
                         Text("Quote expires in ${left / 60}:${(left % 60).toString().padStart(2, '0')}")
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 "A counter-scan probes the live host from a scanner. It can take several minutes and the " +
                     "result is kept in the dataset. Credits are charged when a scanner runs the job; " +
                     "whichever scanner wins it, the charge stays within the range shown.",
             )
             if (!instance.canAct) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Spacing.sm))
                 Text(READ_ONLY, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Spacing.lg))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Cancel") }
                 Button(

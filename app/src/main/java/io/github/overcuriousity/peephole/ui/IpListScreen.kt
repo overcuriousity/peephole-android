@@ -120,8 +120,8 @@ fun IpRow(row: IpSummary, onClick: () -> Unit) {
         modifier = Modifier.clickable(onClick = onClick),
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(row.ip, style = Mono, maxLines = 1, overflow = TextOverflow.MiddleEllipsis, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp))
+                Text(row.ip, style = MonoMedium, maxLines = 1, overflow = TextOverflow.MiddleEllipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(Spacing.sm))
                 SeverityChip(row.maxSeverity)
             }
         },

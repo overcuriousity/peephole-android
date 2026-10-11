@@ -205,9 +205,9 @@ fun RevokedScreen(instanceName: String, onPairAgain: () -> Unit, onRemove: () ->
                 "This device's pairing with $instanceName was revoked. Pair again to continue.",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Spacing.lg))
             Button(onClick = onPairAgain, modifier = Modifier.fillMaxWidth()) { Text("Pair again") }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
             OutlinedButton(onClick = onRemove, modifier = Modifier.fillMaxWidth()) { Text("Remove instance") }
         }
     }
