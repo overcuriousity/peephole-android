@@ -19,7 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +45,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -95,15 +101,7 @@ fun isResumed(): Boolean {
 @Composable
 fun SeverityChip(severity: Int?) {
     if (severity == null) return
-    val color = SeverityColors[severity.coerceIn(0, SeverityColors.lastIndex)]
-    Text(
-        "● sev $severity",
-        color = color,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier
-            .background(color.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-    )
+    ToneChip("● sev $severity", SeverityColors[severity.coerceIn(0, SeverityColors.lastIndex)])
 }
 
 /** A job status with its tone; the word carries the meaning, not only the colour. */
@@ -115,27 +113,41 @@ fun StatusBadge(status: String) {
         "failed", "declined", "lapsed" -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Text(
-        status.ifBlank { "unknown" },
-        color = color,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier
-            .background(color.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+    ToneChip(status.ifBlank { "unknown" }, color)
+}
+
+/**
+ * A read-only label on a tinted chip (v2 §4 item 5). It does nothing on tap,
+ * so it is read as its text, not announced as a button.
+ */
+@Composable
+private fun ToneChip(text: String, color: Color) {
+    AssistChip(
+        onClick = {},
+        label = { Text(text) },
+        colors = AssistChipDefaults.assistChipColors(containerColor = color.copy(alpha = 0.16f), labelColor = color),
+        border = null,
+        modifier = Modifier.clearAndSetSemantics { contentDescription = text },
     )
 }
 
+/** Insets an [ErrorBanner] that sits in an edge-to-edge list or column. */
+val EdgeBanner = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
+
+/** The one error pattern (v1 §5, v2 §4 item 4): the message, and Retry when there is one. */
 @Composable
-fun ErrorBanner(message: String, onRetry: (() -> Unit)?) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.errorContainer)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+fun ErrorBanner(message: String, onRetry: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Text(message, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
-        if (onRetry != null) TextButton(onClick = onRetry) { Text("Retry") }
+        Row(Modifier.padding(start = 12.dp, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+            Text(message, Modifier.weight(1f).padding(vertical = 12.dp))
+            if (onRetry != null) TextButton(onClick = onRetry) { Text("Retry") }
+        }
     }
 }
 

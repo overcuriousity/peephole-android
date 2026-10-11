@@ -1,6 +1,5 @@
 package io.github.overcuriousity.peephole.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,9 +10,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -244,37 +244,40 @@ fun ScanConfirmScreen(
             Text("L$level" + (q?.offer?.about?.takeIf { it.isNotBlank() }?.let { " — $it" } ?: ""))
             Spacer(Modifier.height(Spacing.md))
 
-            Column(
-                Modifier.fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(10.dp))
-                    .padding(16.dp),
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                elevation = CardDefaults.cardElevation(0.dp),
             ) {
-                val r = quote
-                when {
-                    r == null -> SkeletonRows(2)
-                    r !is ApiResult.Ok -> {
-                        Text(quoteProblem(r, instance.instanceName), color = MaterialTheme.colorScheme.error)
-                        if (r !is ApiResult.Failed || r.status != 409) {
-                            OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
+                Column(Modifier.padding(16.dp)) {
+                    val r = quote
+                    when {
+                        r == null -> SkeletonRows(2)
+                        r !is ApiResult.Ok -> {
+                            Text(quoteProblem(r, instance.instanceName), color = MaterialTheme.colorScheme.error)
+                            if (r !is ApiResult.Failed || r.status != 409) {
+                                OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
+                            }
                         }
-                    }
-                    buyError != null -> {
-                        val e = buyError!!
-                        Text(
-                            if (e is ApiResult.Failed) scanConflict(e) else e.describe(instance.instanceName),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        OutlinedButton(onClick = { attempt++ }) { Text("Get a new quote") }
-                    }
-                    expired -> {
-                        Text("Quote expired — get a new one.", color = MaterialTheme.colorScheme.error)
-                        OutlinedButton(onClick = { attempt++ }) { Text("Re-quote") }
-                    }
-                    else -> {
-                        FieldLabel("Cost")
-                        Text(costText(q!!), style = MaterialTheme.typography.headlineSmall)
-                        Spacer(Modifier.height(Spacing.sm))
-                        Text("Quote expires in ${left / 60}:${(left % 60).toString().padStart(2, '0')}")
+                        buyError != null -> {
+                            val e = buyError!!
+                            Text(
+                                if (e is ApiResult.Failed) scanConflict(e) else e.describe(instance.instanceName),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            OutlinedButton(onClick = { attempt++ }) { Text("Get a new quote") }
+                        }
+                        expired -> {
+                            Text("Quote expired — get a new one.", color = MaterialTheme.colorScheme.error)
+                            OutlinedButton(onClick = { attempt++ }) { Text("Re-quote") }
+                        }
+                        else -> {
+                            FieldLabel("Cost")
+                            Text(costText(q!!), style = MaterialTheme.typography.headlineSmall)
+                            Spacer(Modifier.height(Spacing.sm))
+                            Text("Quote expires in ${left / 60}:${(left % 60).toString().padStart(2, '0')}")
+                        }
                     }
                 }
             }

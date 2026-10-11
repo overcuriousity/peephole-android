@@ -1,6 +1,5 @@
 package io.github.overcuriousity.peephole.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,7 +83,7 @@ fun IpDetailScreen(
                         modifier = Modifier.padding(16.dp),
                     )
                 } else {
-                    ErrorBanner(r.describe(instance.instanceName)) { attempt++ }
+                    ErrorBanner(r.describe(instance.instanceName), { attempt++ }, EdgeBanner)
                 }
             }
         }
@@ -170,13 +170,15 @@ private fun Identity(addr: String, ip: IpDetail?) {
 
 @Composable
 private fun Tile(label: String, modifier: Modifier, value: @Composable () -> Unit) {
-    Column(
-        modifier
-            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(6.dp))
-            .padding(12.dp),
+    Card(
+        modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(0.dp),
     ) {
-        FieldLabel(label)
-        value()
+        Column(Modifier.padding(12.dp)) {
+            FieldLabel(label)
+            value()
+        }
     }
 }
 

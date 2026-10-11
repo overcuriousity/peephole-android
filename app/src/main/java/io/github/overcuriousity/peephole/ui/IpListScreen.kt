@@ -85,7 +85,7 @@ fun IpListScreen(api: PeepholeApi, instanceName: String, onOpenIp: (String) -> U
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        error?.let { e -> ErrorBanner(e.describe(instanceName)) { scope.launch { load(cursor = if (items.isEmpty()) null else nextCursor) } } }
+        error?.let { e -> ErrorBanner(e.describe(instanceName), { scope.launch { load(cursor = if (items.isEmpty()) null else nextCursor) } }, EdgeBanner) }
         when {
             loading && items.isEmpty() -> SkeletonRows()
             !loading && error == null && items.isEmpty() ->

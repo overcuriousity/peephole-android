@@ -100,7 +100,7 @@ fun JobScreen(
                 } else {
                     e.describe(instanceName)
                 }
-                ErrorBanner(message) { attempt++ }
+                ErrorBanner(message, { attempt++ }, EdgeBanner)
             }
             if (current == null) {
                 if (error == null) SkeletonRows(3)

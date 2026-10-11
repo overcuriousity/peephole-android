@@ -165,7 +165,7 @@ fun LookupScreen(
                 // Unreadable entries are never sent; they are listed below the names as the server listed them in v1.
                 lookupRows(r.value.copy(unreadable = r.value.unreadable + p?.invalid.orEmpty()), names.isNotEmpty(), onOpenIp)
             }
-            else -> item { ErrorBanner(r.describe(instanceName.orEmpty()), ::submit) }
+            else -> item { ErrorBanner(r.describe(instanceName.orEmpty()), ::submit, EdgeBanner) }
         }
     }
 }
