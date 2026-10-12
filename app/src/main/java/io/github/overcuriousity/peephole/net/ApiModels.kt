@@ -220,3 +220,50 @@ data class ProbePort(
     val outcome: String = "",
     val detail: JsonElement? = null,
 )
+
+/** `GET /ips/{addr}/lookup/quote`: the providers a fresh lookup asks, by which node, at what price, and the total. */
+@Serializable
+data class LookupQuote(
+    @SerialName("quote_id") val quoteId: String,
+    val credits: String,
+    @SerialName("credits_mc") val creditsMc: Long = 0,
+    @SerialName("expires_at") val expiresAt: String,
+    val providers: List<QuoteProvider> = emptyList(),
+)
+
+@Serializable
+data class QuoteProvider(
+    val provider: String,
+    val label: String = "",
+    val node: String = "",
+    val credits: String = "",
+    @SerialName("credits_mc") val creditsMc: Long = 0,
+    val own: Boolean = false,
+)
+
+/** `POST /ips/{addr}/lookup`: what a spent lookup quote charged and what the providers answered. */
+@Serializable
+data class FreshLookup(
+    val ip: String,
+    val credits: String = "",
+    @SerialName("credits_mc") val creditsMc: Long = 0,
+    val charges: List<Charge> = emptyList(),
+    val intel: Map<String, FreshIntel> = emptyMap(),
+    val declined: List<Declined> = emptyList(),
+    val kept: Boolean = false,
+)
+
+@Serializable
+data class Charge(val node: String, val credits: String = "", @SerialName("credits_mc") val creditsMc: Long = 0)
+
+/** [source] is `fresh` (asked now) or `stored` (fresh enough, not asked). */
+@Serializable
+data class FreshIntel(
+    val source: String = "",
+    val node: String = "",
+    @SerialName("fetched_at") val fetchedAt: String? = null,
+    val data: JsonElement? = null,
+)
+
+@Serializable
+data class Declined(val provider: String, val node: String = "", val why: String = "")

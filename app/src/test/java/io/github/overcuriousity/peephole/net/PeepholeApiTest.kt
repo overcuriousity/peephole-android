@@ -115,6 +115,75 @@ class PeepholeApiTest {
     }
 
     @Test
+    fun aLookupQuoteSendsTheProvidersAndDecodesTheOffer() {
+        server.enqueue(
+            MockResponse(
+                body = """{"quote_id":"q_l1","credits":"0.10","credits_mc":100,"expires_at":"2026-10-10T16:05:00Z",""" +
+                    """"providers":[{"provider":"maxmind","label":"MaxMind","node":"this node","credits":"0.00","credits_mc":0,"own":true},""" +
+                    """{"provider":"abuseipdb","label":"AbuseIPDB","node":"bob","credits":"0.10","credits_mc":100,"own":false}]}""",
+            ),
+        )
+
+        val q = (api().lookupQuote("203.0.113.9", listOf("maxmind", "abuseipdb")) as ApiResult.Ok).value
+
+        assertEquals("q_l1", q.quoteId)
+        assertEquals(100L, q.creditsMc)
+        assertEquals(QuoteProvider("abuseipdb", "AbuseIPDB", "bob", "0.10", 100, false), q.providers[1])
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/api/v1/ips/203.0.113.9/lookup/quote", request.url.encodedPath)
+        assertEquals("maxmind,abuseipdb", request.url.queryParameter("providers"))
+    }
+
+    @Test
+    fun aLookupQuoteForEveryProviderSendsNoProviderList() {
+        server.enqueue(MockResponse(body = """{"quote_id":"q","credits":"0.00","expires_at":"x","providers":[]}"""))
+
+        api().lookupQuote("203.0.113.9")
+
+        assertNull(server.takeRequest().url.queryParameter("providers"))
+    }
+
+    @Test
+    fun aFreshLookupSpendsTheQuoteAndDecodesTheAnswers() {
+        server.enqueue(
+            MockResponse(
+                body = """{"ip":"203.0.113.9","credits":"0.10","credits_mc":100,"charges":[{"node":"bob","credits":"0.10","credits_mc":100}],""" +
+                    """"intel":{"abuseipdb":{"source":"fresh","node":"bob","fetched_at":"2026-10-10T16:01:00Z","data":{"score":3}}},""" +
+                    """"declined":[{"provider":"shodan","node":"bob","why":"no key"}],"kept":true}""",
+            ),
+        )
+
+        val r = (api().freshLookup("203.0.113.9", "q_l1") as ApiResult.Ok).value
+
+        assertEquals(listOf(Charge("bob", "0.10", 100)), r.charges)
+        assertEquals("fresh", r.intel.getValue("abuseipdb").source)
+        assertEquals(Declined("shodan", "bob", "no key"), r.declined.single())
+        assertTrue(r.kept)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/ips/203.0.113.9/lookup", request.url.encodedPath)
+        assertEquals("""{"quote_id":"q_l1"}""", request.body!!.utf8())
+    }
+
+    @Test
+    fun aSpentQuoteIsA409WithItsCode() {
+        server.enqueue(MockResponse(code = 409, body = """{"error":{"code":"price_changed","message":"get a new quote"}}"""))
+
+        val r = api().freshLookup("203.0.113.9", "q_l1") as ApiResult.Failed
+
+        assertEquals(409, r.status)
+        assertEquals("price_changed", r.code)
+    }
+
+    @Test
+    fun aReadOnlyTokenCannotQuoteALookup() {
+        server.enqueue(MockResponse(code = 403, body = """{"error":{"code":"forbidden","message":"scope"}}"""))
+
+        assertEquals(ApiResult.NoAct, api().lookupQuote("203.0.113.9"))
+    }
+
+    @Test
     fun theVantageListDecodesAndThePickedOnesAreSent() {
         server.enqueue(
             MockResponse(
