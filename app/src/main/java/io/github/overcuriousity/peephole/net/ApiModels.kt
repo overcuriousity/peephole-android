@@ -154,6 +154,20 @@ data class ScanQuote(
     val offer: Offer = Offer(),
 )
 
+/** `GET /ips/{addr}/scan/prices`: every level's price range now; empty when no scanner announces one. */
+@Serializable
+data class ScanPrices(val levels: List<LevelPrice> = emptyList())
+
+@Serializable
+data class LevelPrice(
+    val level: Int,
+    val about: String = "",
+    val credits: String,
+    @SerialName("credits_mc") val creditsMc: Long = 0,
+    @SerialName("credits_max") val creditsMax: String? = null,
+    @SerialName("credits_max_mc") val creditsMaxMc: Long? = null,
+)
+
 @Serializable
 data class Offer(val level: Int = 0, val about: String = "")
 

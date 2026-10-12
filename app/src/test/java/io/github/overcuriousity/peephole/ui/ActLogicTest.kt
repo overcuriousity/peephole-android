@@ -1,6 +1,8 @@
 package io.github.overcuriousity.peephole.ui
 
 import io.github.overcuriousity.peephole.net.ApiResult
+import io.github.overcuriousity.peephole.net.LevelPrice
+import io.github.overcuriousity.peephole.net.ScanPrices
 import io.github.overcuriousity.peephole.net.ScanQuote
 import io.github.overcuriousity.peephole.net.VantageOffer
 import java.time.Instant
@@ -33,6 +35,20 @@ class ActLogicTest {
         assertEquals("1.28–2.56 credits", costText(q))
         assertEquals("1.28 credits", costText(q.copy(creditsMax = "1.28")))
         assertEquals("0.00 credits", costText(q.copy(credits = "0.00", creditsMax = null)))
+    }
+
+    @Test
+    fun thePickerPricesEachLevelLikeTheQuote() {
+        val p = ScanPrices(
+            listOf(
+                LevelPrice(1, credits = "0.08", creditsMax = "0.32"),
+                LevelPrice(2, credits = "0.32", creditsMax = "0.32"),
+            ),
+        )
+        assertEquals(mapOf(1 to "0.08–0.32 credits", 2 to "0.32 credits"), levelPrices(p))
+        val q = ScanQuote("q", "0.08", 80, "0.32", 320, "2026-10-10T16:02:00Z")
+        assertEquals(costText(q), levelPrices(p)[1])
+        assertEquals(emptyMap<Int, String>(), levelPrices(ScanPrices()))
     }
 
     @Test
