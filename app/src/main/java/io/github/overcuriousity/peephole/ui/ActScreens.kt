@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import io.github.overcuriousity.peephole.net.ApiResult
 import io.github.overcuriousity.peephole.net.PeepholeApi
 import io.github.overcuriousity.peephole.net.ProbeStarted
+import io.github.overcuriousity.peephole.net.ScanPrices
 import io.github.overcuriousity.peephole.net.ScanQuote
 import io.github.overcuriousity.peephole.net.VantageOffer
 import io.github.overcuriousity.peephole.net.VantageOffers
@@ -330,9 +331,17 @@ fun ScanConfirmScreen(
     }
 }
 
-/** `1.28 credits`, or `1.28–2.56 credits` when the winning scanner may cost more. */
-fun costText(q: ScanQuote): String =
-    if (q.creditsMax == null || q.creditsMax == q.credits) "${q.credits} credits" else "${q.credits}–${q.creditsMax} credits"
+/**
+ * `1.28 credits`, or `1.28–2.56 credits` when the winning scanner may cost more:
+ * the instance's own strings, as its Actions card shows them (`scan_buy::Price::text`).
+ */
+fun costText(credits: String, creditsMax: String?): String =
+    if (creditsMax == null || creditsMax == credits) "$credits credits" else "$credits–$creditsMax credits"
+
+fun costText(q: ScanQuote): String = costText(q.credits, q.creditsMax)
+
+/** The level picker's price per level; a level the instance does not price is absent. */
+fun levelPrices(p: ScanPrices): Map<Int, String> = p.levels.associate { it.level to costText(it.credits, it.creditsMax) }
 
 /**
  * When the Confirm button dies: the quote's 2-minute life, less a margin for

@@ -81,6 +81,10 @@ class PeepholeApi(
             if (vantages == null) "{}".toRequestBody(JSON) else encode(ProbeRequest.serializer(), ProbeRequest(vantages)),
         )
 
+    /** Every level's price range, for the level picker; spends nothing. */
+    fun scanPrices(addr: String): ApiResult<ScanPrices> =
+        get(ScanPrices.serializer(), url("ips", addr, "scan", "prices"))
+
     fun scanQuote(addr: String, level: Int): ApiResult<ScanQuote> =
         get(ScanQuote.serializer(), url("ips", addr, "scan", "quote") { addQueryParameter("level", level.toString()) })
 

@@ -74,7 +74,7 @@ fun IpDetailScreen(
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             when (val r = result) {
                 null -> SkeletonRows(4)
-                is ApiResult.Ok -> Detail(r.value, instance, onProbe, onScan)
+                is ApiResult.Ok -> Detail(api, r.value, instance, onProbe, onScan)
                 else -> if (r is ApiResult.Failed && r.status == 404) {
                     Identity(addr, null)
                     Text(
@@ -91,7 +91,7 @@ fun IpDetailScreen(
 }
 
 @Composable
-private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan: (Int) -> Unit) {
+private fun Detail(api: PeepholeApi, ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan: (Int) -> Unit) {
     Identity(ip.ip, ip)
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Tile("Requests", Modifier.weight(1f)) { Text(count(ip.requestCount), style = MaterialTheme.typography.titleLarge) }
@@ -143,7 +143,7 @@ private fun Detail(ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan
     Section("Scans") {
         if (ip.scans.isEmpty()) Text("No scans stored.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         ip.scans.forEach { ScanBlock(it) }
-        ScanPicker(enabled = instance.canAct, onScan = onScan)
+        ScanPicker(api, ip.ip, enabled = instance.canAct, onScan = onScan)
     }
     Divider()
     Section("Probes") {
@@ -198,16 +198,30 @@ fun ScanBlock(scan: ScanResult) {
     }
 }
 
-/** Level picker (design §6.4): one level per cost-confirm, never a combined buy. */
+/**
+ * Level picker (design §6.4): one level per cost-confirm, never a combined buy.
+ * Each level shows its price range, fetched when the menu opens; the confirm
+ * screen's quote stays the binding price. Without prices (an older instance,
+ * no scanner) the levels show bare.
+ */
 @Composable
-private fun ScanPicker(enabled: Boolean, onScan: (Int) -> Unit) {
+private fun ScanPicker(api: PeepholeApi, addr: String, enabled: Boolean, onScan: (Int) -> Unit) {
     var open by remember { mutableStateOf(false) }
+    var prices by remember(addr) { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    LaunchedEffect(open) {
+        if (!open) return@LaunchedEffect
+        val r = withContext(Dispatchers.IO) { api.scanPrices(addr) }
+        prices = if (r is ApiResult.Ok) levelPrices(r.value) else emptyMap()
+    }
     Box {
         ActionButton("Run a counter-scan ▾", enabled = enabled, reason = READ_ONLY) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             (1..5).forEach { level ->
                 DropdownMenuItem(
                     text = { Text("Level $level") },
+                    trailingIcon = {
+                        prices[level]?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    },
                     onClick = {
                         open = false
                         onScan(level)
