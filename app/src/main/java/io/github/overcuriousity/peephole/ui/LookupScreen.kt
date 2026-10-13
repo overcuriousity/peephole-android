@@ -19,6 +19,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,7 +50,8 @@ import kotlinx.coroutines.withContext
 /**
  * Design §6.5, v2 §3: one field for an address, network, host name, URL or
  * a pasted list, and Scan QR. The API serves stored data only (names are
- * resolved, not bought), so no provider is asked and nothing costs. With no
+ * resolved, not bought), so no provider is asked and nothing costs; a
+ * single-address result offers a fresh provider lookup, quoted first. With no
  * [api] (nothing paired, v2 §1.1) the field is disabled and only Scan QR works.
  */
 @Composable
@@ -69,6 +71,7 @@ fun LookupScreen(
     // Scanned text stays in memory: never saved state, never a route.
     var fromQr by remember { mutableStateOf<String?>(null) }
     var unreadable by remember { mutableStateOf<ScanOutcome.Unreadable?>(null) }
+    var fresh by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     RevokedEffect(result, onRevoked)
 
@@ -164,9 +167,26 @@ fun LookupScreen(
                 items(names) { row -> NameResultCard(row, instanceName.orEmpty(), onOpenIp) }
                 // Unreadable entries are never sent; they are listed below the names as the server listed them in v1.
                 lookupRows(r.value.copy(unreadable = r.value.unreadable + p?.invalid.orEmpty()), names.isNotEmpty(), onOpenIp)
+                // MIK-216: asking providers is opt-in, per address, and quoted before any spend.
+                if (api != null && names.isEmpty()) {
+                    freshTarget(r.value)?.let { addr ->
+                        item {
+                            OutlinedButton(onClick = { fresh = addr }, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                                Text("Fresh lookup · asks providers, shows the cost first")
+                            }
+                        }
+                    }
+                }
             }
             else -> item { ErrorBanner(r.describe(instanceName.orEmpty()), ::submit, EdgeBanner) }
         }
+    }
+    val freshAddr = fresh
+    if (api != null && freshAddr != null) {
+        FreshLookupSheet(api, instanceName.orEmpty(), freshAddr, onDone = { spent ->
+            fresh = null
+            if (spent) submit()
+        }, onRevoked = onRevoked)
     }
 }
 

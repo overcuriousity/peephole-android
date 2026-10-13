@@ -91,6 +91,16 @@ class PeepholeApi(
     fun buyScan(addr: String, quoteId: String): ApiResult<ScanBought> =
         post(ScanBought.serializer(), url("ips", addr, "scan"), encode(BuyRequest.serializer(), BuyRequest(quoteId)))
 
+    /** What a fresh provider lookup costs now; every offered provider when [providers] is null. Spends nothing. */
+    fun lookupQuote(addr: String, providers: List<String>? = null): ApiResult<LookupQuote> =
+        get(LookupQuote.serializer(), url("ips", addr, "lookup", "quote") {
+            if (providers != null) addQueryParameter("providers", providers.joinToString(","))
+        })
+
+    /** Spends a [lookupQuote]; a stale, mismatched or spent quote is a `409` that charges nothing. */
+    fun freshLookup(addr: String, quoteId: String): ApiResult<FreshLookup> =
+        post(FreshLookup.serializer(), url("ips", addr, "lookup"), encode(BuyRequest.serializer(), BuyRequest(quoteId)))
+
     fun job(jobId: String): ApiResult<Job> = get(Job.serializer(), url("jobs", jobId))
 
     private fun url(vararg segments: String, query: HttpUrl.Builder.() -> Unit = {}): HttpUrl =
