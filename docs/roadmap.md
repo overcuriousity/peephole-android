@@ -11,7 +11,17 @@ The direction comes from the owner's feedback on v0.1.0 (2026-10-10): the app
 should be a lookup device to carry around. Scan a QR code that holds a URL, or
 type an IP, hostname or URL, and look it up.
 
-## v0.2: built, release pending
+## v0.3: released 2026-10-14
+
+- [x] Level picker shows each level's price range before you pick
+  (#10, MIK-217).
+- [x] Fresh provider lookup: a quote sheet with each provider's price and
+  the total before anything is spent (#11, MIK-238).
+
+v0.3.0 is tagged and released as a signed APK, same signing key as v0.2.0,
+so Obtainium updates in place.
+
+## v0.2: released 2026-10-11
 
 - [x] 1. Look up a hostname or URL (peephole-android #6, #7).
 - [x] 2. Scan any QR code and look up its host (#7).
