@@ -30,6 +30,7 @@ fun PeepholeApp(app: PeepholeApplication) {
         composable("home") {
             InstanceHome(
                 store = store,
+                theme = app.theme,
                 apiFor = app::api,
                 jobs = app.jobs,
                 handoff = handoff,

@@ -8,6 +8,7 @@ import io.github.overcuriousity.peephole.store.InstanceStore
 import io.github.overcuriousity.peephole.store.JobLog
 import io.github.overcuriousity.peephole.store.KeystoreTokenCipher
 import io.github.overcuriousity.peephole.store.PrefsKeyValue
+import io.github.overcuriousity.peephole.store.ThemePrefs
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class PeepholeApplication : Application() {
@@ -15,6 +16,8 @@ class PeepholeApplication : Application() {
         InstanceStore(PrefsKeyValue(getSharedPreferences("instances", Context.MODE_PRIVATE)), KeystoreTokenCipher())
     }
     val jobs: JobLog by lazy { JobLog(PrefsKeyValue(getSharedPreferences("jobs", Context.MODE_PRIVATE))) }
+    /** Appearance; not secret, its own file. */
+    val theme: ThemePrefs by lazy { ThemePrefs(PrefsKeyValue(getSharedPreferences("ui", Context.MODE_PRIVATE))) }
     val pairingClient: PairingClient by lazy { PairingClient() }
 
     /** The API of a paired instance, pinned like its pairing was; null once it is unpaired. */

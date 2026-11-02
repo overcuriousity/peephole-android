@@ -64,16 +64,6 @@ import java.time.format.DateTimeFormatter
 /** The one 403 reason string (design §5: the `act` scope is binary). */
 const val READ_ONLY = "Your pairing is read-only on this instance."
 
-val Warning = Color(0xFFF0B344)
-
-/** Severity text colours, peephole's ramp (design §3). */
-private val SeverityColors = listOf(
-    Color(0xFF9A9EB2),
-    Color(0xFFF0C34A),
-    Color(0xFFFF9440),
-    Color(0xFFFF5C5C),
-    Color(0xFFD17DFF),
-)
 
 /** What a failed call means to the reader, in the instance's own words where it gave some. */
 fun ApiResult<*>.describe(instanceName: String): String = when (this) {
@@ -101,7 +91,8 @@ fun isResumed(): Boolean {
 @Composable
 fun SeverityChip(severity: Int?) {
     if (severity == null) return
-    ToneChip("● sev $severity", SeverityColors[severity.coerceIn(0, SeverityColors.lastIndex)])
+    val ramp = LocalPeepholeColors.current.severity
+    ToneChip("● sev $severity", ramp[severity.coerceIn(0, ramp.lastIndex)])
 }
 
 /** A job status with its tone; the word carries the meaning, not only the colour. */
@@ -121,7 +112,7 @@ fun StatusBadge(status: String) {
  * so it is read as its text, not announced as a button.
  */
 @Composable
-private fun ToneChip(text: String, color: Color) {
+fun ToneChip(text: String, color: Color) {
     AssistChip(
         onClick = {},
         label = { Text(text) },

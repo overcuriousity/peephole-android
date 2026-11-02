@@ -10,6 +10,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
+import io.github.overcuriousity.peephole.store.ThemePrefs
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +57,7 @@ private val Tabs = listOf("Lookup" to R.drawable.ic_search, "IPs" to R.drawable.
 @Composable
 fun InstanceHome(
     store: InstanceStore,
+    theme: ThemePrefs,
     apiFor: (String) -> PeepholeApi?,
     jobs: JobLog,
     handoff: ScanHandoff,
@@ -72,6 +77,9 @@ fun InstanceHome(
 
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var sheet by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var appearance by remember { mutableStateOf(false) }
+    val mode by theme.mode.collectAsState()
     var scan by remember { mutableStateOf<ScanOutcome?>(null) }
     LaunchedEffect(Unit) {
         handoff.take()?.let {
@@ -97,7 +105,27 @@ fun InstanceHome(
                         },
                         trailingIcon = { Icon(painterResource(R.drawable.ic_expand_more), null) },
                     )
-                    if (active != null) TextButton(onClick = { onSettings(active.id) }) { Text("Settings") }
+                    Box {
+                        IconButton(onClick = { menu = true }) { Icon(painterResource(R.drawable.ic_more_vert), "More") }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            if (active != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Instance settings") },
+                                    onClick = {
+                                        menu = false
+                                        onSettings(active.id)
+                                    },
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Appearance") },
+                                onClick = {
+                                    menu = false
+                                    appearance = true
+                                },
+                            )
+                        }
+                    }
                 },
             )
         },
@@ -139,6 +167,8 @@ fun InstanceHome(
             }
         }
     }
+
+    if (appearance) ThemeModeDialog(mode, theme::set) { appearance = false }
 
     if (sheet) {
         ModalBottomSheet(onDismissRequest = { sheet = false }) {

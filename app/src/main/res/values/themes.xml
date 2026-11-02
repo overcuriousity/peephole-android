@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Peephole" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/bg_base</item>
+    <!-- Window colour before Compose draws: the web's light base; values-night has the dark one. -->
+    <style name="Theme.Peephole" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
     </style>
+    <color name="window_bg">#FFF6F5F0</color>
+    <!-- The launcher icon keeps the dark brand colours in either theme. -->
     <color name="bg_base">#FF0A0B10</color>
     <color name="accent">#FF4FD1E0</color>
 </resources>
