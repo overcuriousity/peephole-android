@@ -2,10 +2,15 @@
 
 Android companion app for [peephole](https://github.com/overcuriousity/peephole):
 pair with a peephole node by QR code, browse its IP dataset, and run lookups,
-probes and scans from your phone.
+probes and scans from your phone. An address's page shows what the web IP
+page shows (from the instance's dossier, peephole 0.23 or newer), with ASN,
+campaign and request pages behind it. Light, dark or the system's theme.
 
-Status: under construction (v1). The screen design is in
-[`docs/design/android-v1.md`](docs/design/android-v1.md); the server API is
+Status: v0.4. The screen designs are in
+[`docs/design/android-v1.md`](docs/design/android-v1.md),
+[`docs/design/android-v2.md`](docs/design/android-v2.md) and
+[`docs/superpowers/specs/2026-11-02-v0.4-parity-design.md`](docs/superpowers/specs/2026-11-02-v0.4-parity-design.md);
+the server API is
 [`docs/api-v1.md`](https://github.com/overcuriousity/peephole/blob/master/docs/api-v1.md)
 in the peephole repo.
 
@@ -44,7 +49,7 @@ Test only: JUnit 4, OkHttp MockWebServer 3 and okhttp-tls.
 
 Bundled assets, not libraries: the fonts Inter 4.1 and JetBrains Mono 2.304
 (`app/src/main/res/font/`, SIL OFL 1.1, licence texts in
-`app/src/main/assets/licenses/`) and nine Material Symbols Outlined vector
+`app/src/main/assets/licenses/`) and eleven Material Symbols Outlined vector
 icons (`app/src/main/res/drawable/ic_*.xml`, Apache-2.0, from
 `google/material-design-icons`).
 

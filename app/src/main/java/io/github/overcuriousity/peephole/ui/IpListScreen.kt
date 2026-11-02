@@ -128,11 +128,3 @@ fun IpRow(row: IpSummary, onClick: () -> Unit) {
         supportingContent = { Text(summaryLine(row), color = MaterialTheme.colorScheme.onSurfaceVariant) },
     )
 }
-
-fun summaryLine(row: IpSummary): String = listOfNotNull(
-    row.country,
-    row.asn?.let { "AS$it" + (row.asnOrg?.let { org -> " $org" } ?: "") },
-    "${count(row.requestCount)} reqs",
-    if (row.isTor) "tor exit" else null,
-    row.abuseScore?.let { "abuse $it" },
-).joinToString(" · ")
