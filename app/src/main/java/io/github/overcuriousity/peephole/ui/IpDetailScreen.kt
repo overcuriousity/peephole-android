@@ -36,6 +36,7 @@ import io.github.overcuriousity.peephole.net.IpDetail
 import io.github.overcuriousity.peephole.net.IpDossier
 import io.github.overcuriousity.peephole.net.IpLoad
 import io.github.overcuriousity.peephole.net.loadIp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.overcuriousity.peephole.net.PeepholeApi
 import io.github.overcuriousity.peephole.net.ScanResult
 import io.github.overcuriousity.peephole.store.Instance
@@ -64,11 +65,19 @@ fun IpDetailScreen(
     onOpenRequest: (Long) -> Unit,
     onRevoked: () -> Unit,
 ) {
-    var load by remember { mutableStateOf<IpLoad?>(null) }
+    // Kept while this page is on the back stack: Back from a pivot shows it at once, where it was.
+    val kept = viewModel<IpPageModel>().kept
+    var load by remember { mutableStateOf(kept.get(addr)) }
     var attempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(addr, attempt) {
+        kept.get(addr)?.let {
+            load = it
+            return@LaunchedEffect
+        }
         load = null
-        load = withContext(Dispatchers.IO) { api.loadIp(addr) }
+        val l = withContext(Dispatchers.IO) { api.loadIp(addr) }
+        if (l !is IpLoad.Error) kept.put(addr, l)
+        load = l
     }
     RevokedEffect((load as? IpLoad.Error)?.result, onRevoked)
 
@@ -122,6 +131,7 @@ private fun LazyListScope.ipItems(
     item { IpHeader(ip.ip, ip, d, onOpenAsn, onOpenCampaign) }
     item { Tiles(ip) }
     item { SignalStrip(signalsOf(ip)) }
+    item { ProviderAnswers(ip); SectionDivider() }
     if (d == null) {
         item {
             Text(
@@ -147,8 +157,6 @@ private fun LazyListScope.ipItems(
         item { ActivitySection(d.week, d.calendar, d.generatedAt); SectionDivider() }
         item { TimelineSection(d.events, d.truncated["events"] == true, onOpenRequest); SectionDivider() }
     }
-    item { ProviderAnswers(ip); SectionDivider() }
-    if (ip.names.isNotEmpty() || ip.neighbours != null) item { NamesAndNeighbours(ip); SectionDivider() }
     if (d != null && d.probes.isNotEmpty()) item { ProbeHistorySection(d.probes); SectionDivider() }
     item {
         Section("Scans") {
@@ -164,6 +172,7 @@ private fun LazyListScope.ipItems(
         }
     }
     if (d != null) item { LuresSection(d.uploads, d.commands, d.canaries) }
+    if (ip.names.isNotEmpty() || ip.neighbours != null) item { SectionDivider(); NamesAndNeighbours(ip) }
     item { Spacer(Modifier.height(Spacing.lg)) }
 }
 

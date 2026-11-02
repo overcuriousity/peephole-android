@@ -33,7 +33,8 @@ private val DarkScheme = darkColorScheme(
     outlineVariant = Color(0xFF212536),
     primary = Color(0xFF4FD1E0),
     onPrimary = Color(0xFF0A0B10),
-    primaryContainer = Color(0x244FD1E0),
+    // Opaque: the accent at ~14% over the surface. A see-through container lets list text show through a FAB.
+    primaryContainer = Color(0xFF192D36),
     onPrimaryContainer = Color(0xFF4FD1E0),
     tertiary = Color(0xFFFF3B3B),
     error = Color(0xFFFF6B6B),
@@ -58,9 +59,10 @@ private val LightScheme = lightColorScheme(
     outlineVariant = Color(0xFFE4E1D7),
     primary = Color(0xFF1F6F8B),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0x1F1F6F8B),
+    // Opaque: the accent at ~12% over the base.
+    primaryContainer = Color(0xFFDCE5E4),
     onPrimaryContainer = Color(0xFF1F6F8B),
-    secondaryContainer = Color(0x1F1F6F8B),
+    secondaryContainer = Color(0xFFDCE5E4),
     onSecondaryContainer = Color(0xFF1F6F8B),
     tertiary = Color(0xFFB30000),
     error = Color(0xFFB3382C),

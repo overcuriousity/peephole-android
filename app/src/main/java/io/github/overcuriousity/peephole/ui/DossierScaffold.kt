@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.overcuriousity.peephole.net.ApiResult
 import io.github.overcuriousity.peephole.net.Dossier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -45,11 +46,21 @@ fun <T> DossierScaffold(
     onRevoked: () -> Unit,
     content: LazyListScope.(T) -> Unit,
 ) {
-    var result by remember { mutableStateOf<ApiResult<Dossier<T>>?>(null) }
+    // Kept while this screen is on the back stack (see Kept); only a good load is kept.
+    val kept = viewModel<DossierModel>().kept
+    @Suppress("UNCHECKED_CAST")
+    fun keptOk(): ApiResult<Dossier<T>>? = (kept.get(title) as Dossier<T>?)?.let { ApiResult.Ok(it) }
+    var result by remember { mutableStateOf(keptOk()) }
     var attempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(title, attempt) {
+        keptOk()?.let {
+            result = it
+            return@LaunchedEffect
+        }
         result = null
-        result = withContext(Dispatchers.IO) { load() }
+        val r = withContext(Dispatchers.IO) { load() }
+        if (r is ApiResult.Ok) kept.put(title, r.value)
+        result = r
     }
     RevokedEffect(result, onRevoked)
     Scaffold(

@@ -2,6 +2,7 @@ package io.github.overcuriousity.peephole.ui
 
 import android.content.ClipData
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,7 +43,6 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,8 +61,11 @@ import java.time.Instant
 import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 
-/** Past this, a share intent risks Binder's transaction limit; the item says so instead. */
-private const val SHARE_MAX_CHARS = 200_000
+/**
+ * Past this a share intent risks Binder's transaction limit (text travels
+ * as UTF-16, and the chooser parcels it again); the item says so instead.
+ */
+private const val SHARE_MAX_CHARS = 100_000
 
 /** Rows the timeline shows before "Show all". */
 private const val TIMELINE_FIRST = 50
@@ -77,7 +80,9 @@ fun ShareMenu(text: () -> String, json: (() -> String)?, textLabel: String = "Ad
     var open by remember { mutableStateOf(false) }
     fun send(body: String) {
         val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, body)
-        context.startActivity(Intent.createChooser(intent, null))
+        // A device with a smaller transaction buffer still refuses; say so rather than crash.
+        runCatching { context.startActivity(Intent.createChooser(intent, null)) }
+            .onFailure { Toast.makeText(context, "Could not share: too large for this device.", Toast.LENGTH_LONG).show() }
     }
     Box {
         IconButton(onClick = { open = true }) { Icon(painterResource(R.drawable.ic_share), "Share") }
