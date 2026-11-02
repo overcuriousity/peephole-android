@@ -17,6 +17,10 @@ data class IpSummary(
     val asn: Long? = null,
     @SerialName("asn_org") val asnOrg: String? = null,
     @SerialName("is_tor") val isTor: Boolean = false,
+    /** A listed Tor relay (any role); 0.18+. */
+    @SerialName("is_tor_relay") val isTorRelay: Boolean = false,
+    /** Added by an operator, never seen in traffic; 0.15+. */
+    val unseen: Boolean = false,
     @SerialName("first_seen") val firstSeen: String? = null,
     @SerialName("last_seen") val lastSeen: String? = null,
     @SerialName("request_count") val requestCount: Long = 0,
@@ -32,6 +36,8 @@ data class IpDetail(
     val ip: String,
     val geo: Geo = Geo(),
     @SerialName("is_tor") val isTor: Boolean = false,
+    @SerialName("is_tor_relay") val isTorRelay: Boolean = false,
+    val unseen: Boolean = false,
     val severity: Int? = null,
     @SerialName("first_seen") val firstSeen: String? = null,
     @SerialName("last_seen") val lastSeen: String? = null,
