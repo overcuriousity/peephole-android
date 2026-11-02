@@ -79,6 +79,9 @@ fun PeepholeApp(app: PeepholeApplication) {
                     onBack = { nav.popBackStack() },
                     onProbe = { nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}/probe") },
                     onScan = { level -> nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}/scan/$level") },
+                    onOpenAsn = {},
+                    onOpenCampaign = {},
+                    onOpenRequest = {},
                     onRevoked = { nav.revoked(instance.id) },
                 )
             }
