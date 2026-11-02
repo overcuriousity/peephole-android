@@ -79,9 +79,52 @@ fun PeepholeApp(app: PeepholeApplication) {
                     onBack = { nav.popBackStack() },
                     onProbe = { nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}/probe") },
                     onScan = { level -> nav.navigate("instance/${instance.id}/ip/${Uri.encode(addr)}/scan/$level") },
-                    onOpenAsn = {},
-                    onOpenCampaign = {},
-                    onOpenRequest = {},
+                    onOpenAsn = { nav.navigate("instance/${instance.id}/asn/$it") },
+                    onOpenCampaign = { nav.toCampaign(instance.id, it) },
+                    onOpenRequest = { nav.navigate("instance/${instance.id}/request/$it") },
+                    onRevoked = { nav.revoked(instance.id) },
+                )
+            }
+        }
+        composable("instance/{id}/asn/{n}") { entry ->
+            val asn = entry.arguments?.getString("n")?.toLongOrNull() ?: 0
+            Paired(app, entry, nav) { instance, api ->
+                AsnScreen(
+                    api = api,
+                    instance = instance,
+                    asn = asn,
+                    onBack = { nav.popBackStack() },
+                    onOpenIp = { nav.toIp(instance.id, it) },
+                    onOpenCampaign = { nav.toCampaign(instance.id, it) },
+                    onRevoked = { nav.revoked(instance.id) },
+                )
+            }
+        }
+        composable("instance/{id}/campaign/{key}") { entry ->
+            val key = entry.arguments?.getString("key").orEmpty()
+            Paired(app, entry, nav) { instance, api ->
+                CampaignScreen(
+                    api = api,
+                    instance = instance,
+                    key = key,
+                    onBack = { nav.popBackStack() },
+                    onOpenIp = { nav.toIp(instance.id, it) },
+                    onOpenRequest = { nav.navigate("instance/${instance.id}/request/$it") },
+                    onRevoked = { nav.revoked(instance.id) },
+                )
+            }
+        }
+        composable("instance/{id}/request/{rid}") { entry ->
+            val rid = entry.arguments?.getString("rid")?.toLongOrNull() ?: 0
+            Paired(app, entry, nav) { instance, api ->
+                RequestScreen(
+                    api = api,
+                    instance = instance,
+                    id = rid,
+                    onBack = { nav.popBackStack() },
+                    onOpenIp = { nav.toIp(instance.id, it) },
+                    onOpenRequest = { nav.navigate("instance/${instance.id}/request/$it") },
+                    onOpenCampaign = { nav.toCampaign(instance.id, it) },
                     onRevoked = { nav.revoked(instance.id) },
                 )
             }
@@ -179,6 +222,11 @@ private fun Paired(
     }
     content(instance, api)
 }
+
+private fun NavHostController.toIp(id: String, addr: String) = navigate("instance/$id/ip/${Uri.encode(addr)}")
+
+/** A campaign key is an address; an IPv6 one has colons, so it is encoded like one. */
+private fun NavHostController.toCampaign(id: String, key: String) = navigate("instance/$id/campaign/${Uri.encode(key)}")
 
 private fun NavHostController.revoked(id: String) = navigate("instance/$id/revoked") { popUpTo("home") }
 
