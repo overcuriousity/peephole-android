@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -33,7 +30,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.overcuriousity.peephole.net.ApiResult
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import io.github.overcuriousity.peephole.net.IpDetail
+import io.github.overcuriousity.peephole.net.IpDossier
+import io.github.overcuriousity.peephole.net.IpLoad
+import io.github.overcuriousity.peephole.net.loadIp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.overcuriousity.peephole.net.PeepholeApi
 import io.github.overcuriousity.peephole.net.ScanResult
 import io.github.overcuriousity.peephole.store.Instance
@@ -43,7 +46,11 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-/** Design §6.4: identity and verdict first, raw evidence last. */
+/**
+ * Design §6.4, v0.4 spec §2: the web IP page's order, from the address's
+ * dossier (0.23+). On an older server the plain record shows, without the
+ * dossier's sections.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IpDetailScreen(
@@ -53,62 +60,143 @@ fun IpDetailScreen(
     onBack: () -> Unit,
     onProbe: () -> Unit,
     onScan: (level: Int) -> Unit,
+    onOpenAsn: (Long) -> Unit,
+    onOpenCampaign: (String) -> Unit,
+    onOpenRequest: (Long) -> Unit,
     onRevoked: () -> Unit,
 ) {
-    var result by remember { mutableStateOf<ApiResult<IpDetail>?>(null) }
+    // Kept while this page is on the back stack: Back from a pivot shows it at once, where it was.
+    val kept = viewModel<IpPageModel>().kept
+    var load by remember { mutableStateOf(kept.get(addr)) }
     var attempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(addr, attempt) {
-        result = null
-        result = withContext(Dispatchers.IO) { api.ip(addr) }
+        kept.get(addr)?.let {
+            load = it
+            return@LaunchedEffect
+        }
+        load = null
+        val l = withContext(Dispatchers.IO) { api.loadIp(addr) }
+        if (l !is IpLoad.Error) kept.put(addr, l)
+        load = l
     }
-    RevokedEffect(result, onRevoked)
+    RevokedEffect((load as? IpLoad.Error)?.result, onRevoked)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(addr, style = MonoMedium, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
                 navigationIcon = { BackButton(onBack) },
+                actions = {
+                    val raw = (load as? IpLoad.Full)?.dossier?.raw
+                    ShareMenu(text = { addr }, json = raw?.let { r -> { r } })
+                },
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
-            when (val r = result) {
-                null -> SkeletonRows(4)
-                is ApiResult.Ok -> Detail(api, r.value, instance, onProbe, onScan)
-                else -> if (r is ApiResult.Failed && r.status == 404) {
-                    Identity(addr, null)
-                    Text(
-                        "Not recorded here: not in the dataset.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                } else {
-                    ErrorBanner(r.describe(instance.instanceName), { attempt++ }, EdgeBanner)
+        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            when (val l = load) {
+                null -> item { SkeletonRows(4) }
+                IpLoad.NotStored -> {
+                    item { IpHeader(addr, null, null, onOpenAsn, onOpenCampaign) }
+                    item {
+                        Text(
+                            "Not recorded here: not in the dataset.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
+                is IpLoad.Error -> item { ErrorBanner(l.result.describe(instance.instanceName), { attempt++ }, EdgeBanner) }
+                is IpLoad.Plain -> ipItems(api, instance, l.detail, null, onProbe, onScan, onOpenAsn, onOpenCampaign, onOpenRequest)
+                is IpLoad.Full -> {
+                    val d = l.dossier.value
+                    ipItems(api, instance, d.detail(), d, onProbe, onScan, onOpenAsn, onOpenCampaign, onOpenRequest)
                 }
             }
         }
     }
 }
 
-@Composable
-private fun Detail(api: PeepholeApi, ip: IpDetail, instance: Instance, onProbe: () -> Unit, onScan: (Int) -> Unit) {
-    Identity(ip.ip, ip)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Tile("Requests", Modifier.weight(1f)) { Text(count(ip.requestCount), style = MaterialTheme.typography.titleLarge) }
-        Tile("Rank", Modifier.weight(1f)) { Text(ip.rank?.let { "#$it" } ?: "—", style = MaterialTheme.typography.titleLarge) }
-        Tile("Max sev.", Modifier.weight(1f)) {
-            if (ip.severity == null) Text("—", style = MaterialTheme.typography.titleLarge) else SeverityChip(ip.severity)
+private fun LazyListScope.ipItems(
+    api: PeepholeApi,
+    instance: Instance,
+    ip: IpDetail,
+    d: IpDossier?,
+    onProbe: () -> Unit,
+    onScan: (Int) -> Unit,
+    onOpenAsn: (Long) -> Unit,
+    onOpenCampaign: (String) -> Unit,
+    onOpenRequest: (Long) -> Unit,
+) {
+    item { IpHeader(ip.ip, ip, d, onOpenAsn, onOpenCampaign) }
+    item { Tiles(ip) }
+    item { SignalStrip(signalsOf(ip)) }
+    item { ProviderAnswers(ip); SectionDivider() }
+    if (d == null) {
+        item {
+            Text(
+                "This instance runs peephole older than 0.23: activity, timeline and verdicts need 0.23.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
     }
-    Spacer(Modifier.height(Spacing.sm))
     if (ip.labels.isNotEmpty() || ip.families.isNotEmpty()) {
-        Section("Verdict") {
-            if (ip.labels.isNotEmpty()) Text(ip.labels.joinToString(" · "))
-            ip.families.forEach { Text("${it.name} · ${count(it.count)}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item {
+            Section("What it was after") {
+                if (ip.labels.isNotEmpty()) Text(ip.labels.joinToString(" · "))
+                ip.families.forEach { Text("${it.name} · ${count(it.count)}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            SectionDivider()
         }
-        Divider()
     }
-    Section("Enrichment") {
+    d?.evidence?.let { v -> item { VerdictSection("Evidence", v); SectionDivider() } }
+    d?.sharing?.let { v -> item { VerdictSection("Address sharing", v); SectionDivider() } }
+    if (d != null) {
+        item { ActivitySection(d.week, d.calendar, d.generatedAt); SectionDivider() }
+        item { TimelineSection(d.events, d.truncated["events"] == true, onOpenRequest); SectionDivider() }
+    }
+    if (d != null && d.probes.isNotEmpty()) item { ProbeHistorySection(d.probes); SectionDivider() }
+    item {
+        Section("Scans") {
+            if (ip.scans.isEmpty()) Text("No scans stored.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ip.scans.forEach { ScanBlock(it) }
+            ScanPicker(api, ip.ip, enabled = instance.canAct, onScan = onScan)
+        }
+        SectionDivider()
+    }
+    item {
+        Section("Probes") {
+            ActionButton("Probe this address", enabled = instance.canAct, reason = READ_ONLY, onClick = onProbe)
+        }
+    }
+    if (d != null) item { LuresSection(d.uploads, d.commands, d.canaries) }
+    if (ip.names.isNotEmpty() || ip.neighbours != null) item { SectionDivider(); NamesAndNeighbours(ip) }
+    item { Spacer(Modifier.height(Spacing.lg)) }
+}
+
+@Composable
+private fun Tiles(ip: IpDetail) {
+    val big = MaterialTheme.typography.titleLarge
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Tile("Requests", Modifier.weight(1f)) { Text(count(ip.requestCount), style = big) }
+            Tile("Rank", Modifier.weight(1f)) { Text(ip.rank?.let { "#$it" } ?: "—", style = big) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Tile("Max sev.", Modifier.weight(1f)) {
+                if (ip.severity == null) Text("—", style = big) else SeverityChip(ip.severity)
+            }
+            Tile("Open ports", Modifier.weight(1f)) { Text(newestOpenPorts(ip.scans)?.toString() ?: "—", style = big) }
+        }
+    }
+}
+
+/** Each provider's newest stored answer, raw (the signals strip above reads them). */
+@Composable
+private fun ProviderAnswers(ip: IpDetail) {
+    Section("Provider answers", initiallyOpen = false) {
         if (ip.intel.isEmpty()) Text("No stored enrichment.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         ip.intel.toSortedMap().forEach { (provider, intel) ->
             Column(Modifier.padding(bottom = 12.dp)) {
@@ -122,48 +210,22 @@ private fun Detail(api: PeepholeApi, ip: IpDetail, instance: Instance, onProbe: 
             }
         }
     }
-    Divider()
-    if (ip.names.isNotEmpty() || ip.neighbours != null) {
-        Section("Names and neighbours", initiallyOpen = false) {
-            ip.names.forEach { n ->
-                Text(n.name, style = MonoMedium)
-                Text(
-                    n.source + if (n.agreed) " · resolvers agree" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            ip.neighbours?.let { nb ->
-                Spacer(Modifier.height(Spacing.sm))
-                Text("${nb.net ?: "network"}: ${count(nb.otherIps)} other addresses · ${count(nb.sameAsn)} in the same ASN")
-            }
-        }
-        Divider()
-    }
-    Section("Scans") {
-        if (ip.scans.isEmpty()) Text("No scans stored.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        ip.scans.forEach { ScanBlock(it) }
-        ScanPicker(api, ip.ip, enabled = instance.canAct, onScan = onScan)
-    }
-    Divider()
-    Section("Probes") {
-        ActionButton("Probe this address", enabled = instance.canAct, reason = READ_ONLY, onClick = onProbe)
-    }
 }
 
 @Composable
-private fun Identity(addr: String, ip: IpDetail?) {
-    Column(Modifier.fillMaxWidth().padding(16.dp)) {
-        SelectionContainer { Text(addr, style = MonoMedium.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize)) }
-        if (ip != null) {
-            val place = listOfNotNull(
-                ip.geo.country,
-                ip.geo.asn?.let { "AS$it" + (ip.geo.asnOrg?.let { org -> " $org" } ?: "") },
-            ).joinToString(" · ")
-            if (place.isNotEmpty()) Text(place)
-            if (ip.isTor) Text("Tor exit", color = MaterialTheme.colorScheme.tertiary)
-            ip.firstSeen?.let { Text("first seen ${utcTime(it)}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            ip.lastSeen?.let { Text("last seen ${utcTime(it)}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+private fun NamesAndNeighbours(ip: IpDetail) {
+    Section("Names and neighbours", initiallyOpen = false) {
+        ip.names.forEach { n ->
+            Text(n.name, style = MonoMedium)
+            Text(
+                n.source + if (n.agreed) " · resolvers agree" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        ip.neighbours?.let { nb ->
+            Spacer(Modifier.height(Spacing.sm))
+            Text("${nb.net ?: "network"}: ${count(nb.otherIps)} other addresses · ${count(nb.sameAsn)} in the same ASN")
         }
     }
 }
@@ -232,8 +294,9 @@ private fun ScanPicker(api: PeepholeApi, addr: String, enabled: Boolean, onScan:
     }
 }
 
+/** The rule between IP page sections. */
 @Composable
-private fun Divider() = HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+fun SectionDivider() = HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
 /** Top-level scalar fields of a provider's stored answer, enough to read without a JSON viewer. */
 private fun scalarFields(data: Any?, max: Int = 8): List<Pair<String, String>> =

@@ -65,6 +65,19 @@ class PeepholeApi(
 
     fun ip(addr: String): ApiResult<IpDetail> = get(IpDetail.serializer(), url("ips", addr))
 
+    /** The address's dossier (0.23+); `404` on an older server or an address not in the dataset. */
+    fun ipDossier(addr: String): ApiResult<Dossier<IpDossier>> = dossier(IpDossier.serializer(), url("ips", addr, "dossier"))
+
+    fun asnDossier(asn: Long): ApiResult<Dossier<AsnDossier>> =
+        dossier(AsnDossier.serializer(), url("asns", asn.toString(), "dossier"))
+
+    /** [key] is the campaign's address. */
+    fun campaignDossier(key: String): ApiResult<Dossier<CampaignDossier>> =
+        dossier(CampaignDossier.serializer(), url("campaigns", key, "dossier"))
+
+    fun requestDossier(id: Long): ApiResult<Dossier<RequestDossier>> =
+        dossier(RequestDossier.serializer(), url("requests", id.toString(), "dossier"))
+
     /** `ips` is always sent (an old server requires it); `names` only when there are any. */
     fun lookup(ips: List<String>, names: List<String> = emptyList()): ApiResult<LookupResult> =
         post(LookupResult.serializer(), url("lookup"), encode(LookupRequest.serializer(), LookupRequest(ips, names)))
@@ -114,6 +127,19 @@ class PeepholeApi(
     private fun <T> encode(serializer: KSerializer<T>, value: T): RequestBody =
         json.encodeToString(serializer, value).toRequestBody(JSON)
 
+    /** A GET whose answer is kept as text too, so Share sends what the instance sent. */
+    private fun <T> dossier(serializer: KSerializer<T>, url: HttpUrl): ApiResult<Dossier<T>> {
+        var raw = ""
+        return when (val r = call(serializer, request(url).get().build()) { raw = it }) {
+            is ApiResult.Ok -> ApiResult.Ok(Dossier(r.value, raw))
+            ApiResult.Revoked -> ApiResult.Revoked
+            ApiResult.NoAct -> ApiResult.NoAct
+            ApiResult.PinMismatch -> ApiResult.PinMismatch
+            is ApiResult.Unreachable -> r
+            is ApiResult.Failed -> r
+        }
+    }
+
     private fun <T> get(serializer: KSerializer<T>, url: HttpUrl): ApiResult<T> =
         call(serializer, request(url).get().build())
 
@@ -125,16 +151,17 @@ class PeepholeApi(
         .header("Authorization", "Bearer ${token.value}")
         .header("Accept", "application/json")
 
-    private fun <T> call(serializer: KSerializer<T>, request: Request): ApiResult<T> = try {
-        client.newCall(request).execute().use { response -> respond(serializer, response) }
+    private fun <T> call(serializer: KSerializer<T>, request: Request, onText: (String) -> Unit = {}): ApiResult<T> = try {
+        client.newCall(request).execute().use { response -> respond(serializer, response, onText) }
     } catch (_: PinMismatchException) {
         ApiResult.PinMismatch
     } catch (e: IOException) {
         ApiResult.Unreachable(e.message ?: e.javaClass.simpleName)
     }
 
-    private fun <T> respond(serializer: KSerializer<T>, response: Response): ApiResult<T> {
+    private fun <T> respond(serializer: KSerializer<T>, response: Response, onText: (String) -> Unit): ApiResult<T> {
         val text = response.body.string()
+        onText(text)
         return when (response.code) {
             in 200..299 -> {
                 val value = runCatching { json.decodeFromString(serializer, text) }.getOrElse {

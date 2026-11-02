@@ -316,7 +316,73 @@ class PeepholeApiTest {
         assertEquals(emptyList<NameLookup>(), (api().lookup(listOf("203.0.113.9")) as ApiResult.Ok).value.names)
     }
 
+    @Test
+    fun ipDossierKeepsTheRawTextAndUsesOneSegment() {
+        val body = """{"dossier_v":1,"kind":"ip","id":"2001:db8::1","ip":"2001:db8::1","request_count":3}"""
+        server.enqueue(MockResponse(body = body))
+
+        val r = api().ipDossier("2001:db8::1") as ApiResult.Ok
+
+        assertEquals(body, r.value.raw)
+        assertEquals(3L, r.value.value.requestCount)
+        assertEquals(listOf("api", "v1", "ips", "2001:db8::1", "dossier"), server.takeRequest().url.pathSegments)
+    }
+
+    @Test
+    fun pivotDossiersUseTheirRoutes() {
+        repeat(3) { server.enqueue(MockResponse(body = """{"dossier_v":1}""")) }
+
+        assertTrue(api().campaignDossier("2001:db8::7") is ApiResult.Ok)
+        assertTrue(api().asnDossier(6805) is ApiResult.Ok)
+        assertTrue(api().requestDossier(991) is ApiResult.Ok)
+
+        assertEquals(listOf("api", "v1", "campaigns", "2001:db8::7", "dossier"), server.takeRequest().url.pathSegments)
+        assertEquals("/api/v1/asns/6805/dossier", server.takeRequest().url.encodedPath)
+        assertEquals("/api/v1/requests/991/dossier", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun loadIpIsTheDossierOnANewServer() {
+        server.enqueue(MockResponse(body = """{"dossier_v":1,"kind":"ip","id":"203.0.113.9","ip":"203.0.113.9"}"""))
+
+        val r = api().loadIp("203.0.113.9")
+
+        assertTrue(r is IpLoad.Full)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun loadIpFallsBackOnAnOldServer() {
+        server.enqueue(MockResponse(code = 404, body = NOT_FOUND))
+        server.enqueue(MockResponse(body = """{"ip":"203.0.113.9","request_count":7}"""))
+
+        val r = api().loadIp("203.0.113.9")
+
+        assertEquals(7L, (r as IpLoad.Plain).detail.requestCount)
+        server.takeRequest()
+        assertEquals("/api/v1/ips/203.0.113.9", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun loadIpNotStored() {
+        server.enqueue(MockResponse(code = 404, body = NOT_FOUND))
+        server.enqueue(MockResponse(code = 404, body = NOT_FOUND))
+
+        assertEquals(IpLoad.NotStored, api().loadIp("203.0.113.9"))
+    }
+
+    @Test
+    fun loadIpPassesOtherErrors() {
+        server.enqueue(MockResponse(code = 503, body = """{"error":{"code":"busy","message":"try later"}}"""))
+
+        val r = api().loadIp("203.0.113.9")
+
+        assertEquals("busy", ((r as IpLoad.Error).result as ApiResult.Failed).code)
+        assertEquals(1, server.requestCount)
+    }
+
     private companion object {
+        const val NOT_FOUND = """{"error":{"code":"not_found","message":"no such address in the dataset"}}"""
         const val TOKEN = "Zv9-secret-token-value-0123456789abcdefghij"
         const val OLD_SERVER_LOOKUP = """{"results":[],"missing":[],"unreadable":[],"capped":false}"""
     }

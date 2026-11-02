@@ -11,6 +11,25 @@ The direction comes from the owner's feedback on v0.1.0 (2026-10-10): the app
 should be a lookup device to carry around. Scan a QR code that holds a URL, or
 type an IP, hostname or URL, and look it up.
 
+## v0.4: built
+
+Closer to the web, with no server change: peephole 0.23 added read-scope
+dossiers that carry everything the web IP page shows, and the app now
+uses them (#13, design in
+[superpowers/specs/2026-11-02-v0.4-parity-design.md](superpowers/specs/2026-11-02-v0.4-parity-design.md)).
+
+- [x] IP page from the dossier: property strip, signals strip (Tor, abuse
+  score, Shodan/InternetDB ports and CVEs, RDAP holder, fresh block),
+  evidence and address-sharing verdicts, week and calendar charts,
+  timeline, probe history, lures. Share sends the address or the JSON.
+  An instance before 0.23 shows the plain record and says so.
+- [x] ASN, campaign and request pages, opened from the IP page.
+- [x] Light theme from the web's tokens; System / Light / Dark.
+- [x] Back icon; tor relay, unseen and last seen in list rows.
+
+Still needs api-v1 first: a job list, stopping a job, IP-list filters
+beyond the search box, the credit balance.
+
 ## v0.3: released 2026-10-14
 
 - [x] Level picker shows each level's price range before you pick

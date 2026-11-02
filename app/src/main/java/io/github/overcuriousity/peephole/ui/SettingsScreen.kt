@@ -1,5 +1,8 @@
 package io.github.overcuriousity.peephole.ui
 
+import io.github.overcuriousity.peephole.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,8 +27,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.overcuriousity.peephole.store.InstanceStore
 
@@ -128,5 +129,5 @@ private fun Label(text: String) {
 
 @Composable
 fun BackButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = "Back" }) { Text("←") }
+    IconButton(onClick = onClick) { Icon(painterResource(R.drawable.ic_arrow_back), "Back") }
 }
